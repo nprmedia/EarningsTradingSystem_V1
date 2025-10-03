@@ -1,6 +1,7 @@
 import os, argparse, sys, logging, time
 from datetime import datetime
 import pandas as pd
+import logging
 
 logging.getLogger("yfinance").setLevel(logging.ERROR)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
