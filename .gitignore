@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Local files
+.env
+out/
+logs/
+cache/
+
+# VSCode
+.vscode/*.log

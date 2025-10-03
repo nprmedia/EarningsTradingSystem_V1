@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Run nightly (AMC)",
+        "type": "python",
+        "request": "launch",
+        "module": "src.main",
+        "console": "integratedTerminal",
+        "args": ["--session","amc","--date","2025-10-02","--tickers","tickers.csv"],
+        "envFile": "${workspaceFolder}/.env"
+      }
+    ]
+  }
+  

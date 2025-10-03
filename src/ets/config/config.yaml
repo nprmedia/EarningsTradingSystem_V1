@@ -1,0 +1,40 @@
+app:
+  timezone: America/Chicago
+  session: amc            # amc = after market close, bmo = before market open
+  out_dir: out
+  logs_dir: logs
+  cache_dir: cache
+
+universe:
+  min_price: 3.0
+  dollar_volume_floor: 2000000
+
+normalization:
+  winsor_p_low: 0.10
+  winsor_p_high: 0.90
+  min_universe_for_robust: 40
+  clip_min: 0.05
+  clip_max: 0.95
+
+selection:
+  score_threshold: 1.05
+  max_names: 20
+  max_per_sector: 5
+  risk_floor_sigma_g: 0.30
+  risk_floor_tau_g: 0.30
+
+etfs:
+  spy: SPY
+  vix: "^VIX"
+  sectors:
+    Consumer Discretionary: XLY
+    Consumer Staples: XLP
+    Energy: XLE
+    Financials: XLF
+    Health Care: XLV
+    Industrials: XLI
+    Materials: XLB
+    Real Estate: XLRE
+    Communication Services: XLC
+    Information Technology: XLK
+    Utilities: XLU
