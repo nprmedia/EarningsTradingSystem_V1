@@ -1,40 +1,51 @@
 app:
-  timezone: America/Chicago
-  session: amc            # amc = after market close, bmo = before market open
   out_dir: out
   logs_dir: logs
   cache_dir: cache
 
-universe:
-  min_price: 3.0
-  dollar_volume_floor: 2000000
+api_limits:
+  finnhub:   { per_second: 30, per_minute: 60, reserve: 2 }
+  yahoo:     { per_second: 5,  per_minute: 20, reserve: 2 }
+  pytrends:  { per_second: 2,  per_minute: 10, reserve: 2 }
 
 normalization:
-  winsor_p_low: 0.10
-  winsor_p_high: 0.90
-  min_universe_for_robust: 40
-  clip_min: 0.05
-  clip_max: 0.95
+  winsor_p_low: 0.05
+  winsor_p_high: 0.95
+  min_universe_for_robust: 5
+  clip_min: -5.0
+  clip_max: 5.0
+
+universe:
+  min_price: 5.0
+  dollar_volume_floor: 10000000.0
 
 selection:
-  score_threshold: 1.05
-  max_names: 20
-  max_per_sector: 5
-  risk_floor_sigma_g: 0.30
-  risk_floor_tau_g: 0.30
+  risk_floor_sigma_g: -2.0
+  risk_floor_tau_g: -2.0
+  score_threshold: 0.0
+  max_names: 30
+  max_per_sector: 10
 
+# NEW: sector -> ETF map used for sector-relative momentum / flows
 etfs:
-  spy: SPY
-  vix: "^VIX"
   sectors:
+    Information Technology: XLK
     Consumer Discretionary: XLY
-    Consumer Staples: XLP
-    Energy: XLE
     Financials: XLF
-    Health Care: XLV
     Industrials: XLI
+    Energy: XLE
+    Health Care: XLV
+    Utilities: XLU
     Materials: XLB
     Real Estate: XLRE
     Communication Services: XLC
-    Information Technology: XLK
-    Utilities: XLU
+    Consumer Staples: XLP
+    # Fallback for unknown sector labels:
+    _default: SPY
+
+features:
+  sector_etfs: ["XLK","XLY","XLF","XLI","XLE","XLV","XLU","XLB","XLRE","XLC","XLP"]
+  peer_drift_window_days: 5
+  macro_vix: true
+  macro_yields: false
+  search_index: true

@@ -1,37 +1,35 @@
-import os, time, requests
-from typing import Optional
+import time
+from typing import Optional, Dict, Any
+from urllib.parse import urlencode
 
-_BASE = "https://finnhub.io/api/v1"
-_TOKEN = os.getenv("FINNHUB_TOKEN", "").strip()
-_RETRIES = 3
-_BACKOFF = 0.8  # seconds
-
-def _get(path: str, params: dict) -> Optional[dict]:
-    if not _TOKEN:
-        return None
-    params = dict(params or {})
-    params["token"] = _TOKEN
-    for i in range(_RETRIES):
-        try:
-            r = requests.get(f"{_BASE}{path}", params=params, timeout=8)
-            if r.status_code == 429:
-                time.sleep(_BACKOFF * (i + 1)); continue
-            r.raise_for_status()
-            return r.json()
-        except Exception:
-            time.sleep(_BACKOFF * (i + 1))
+def _get(reg, path, params) -> Optional[Dict[str, Any]]:
+    reg["limiter"].acquire()
+    sess = reg["session"]; base = reg["base"]
+    params = dict(params or {}); params["token"] = reg["key"]
+    url = f"{base}{path}?{urlencode(params)}"
+    r = sess.get(url, timeout=8)
+    if r.status_code == 429 or r.status_code >= 500:
+        time.sleep(0.8)
+        reg["limiter"].acquire()
+        r = sess.get(url, timeout=8)
+    if r.ok:
+        try: return r.json()
+        except Exception: return None
     return None
 
-def fetch_quote_basic(symbol: str) -> Optional[dict]:
-    """
-    Returns dict: last, open, high, low, volume using Finnhub's /quote.
-    """
-    data = _get("/quote", {"symbol": symbol})
-    if not data:
-        return None
-    c = float(data.get("c") or 0.0)
-    o = float(data.get("o") or 0.0)
-    h = float(data.get("h") or c)
-    l = float(data.get("l") or c)
-    v = float(data.get("v") or 0.0)
-    return {"last": c, "open": o, "high": h, "low": l, "volume": v}
+def candles(reg, symbol: str, resolution: str = "D", count: int = 5) -> Optional[Dict]:
+    import time as _t
+    now = int(_t.time())
+    frm = now - int(60*60*24*count*2)
+    out = _get(reg, "/stock/candle", {"symbol": symbol, "resolution": resolution, "from": frm, "to": now})
+    if not out or out.get("s") != "ok": return None
+    return out
+
+def quote(reg, symbol: str) -> Optional[Dict]:
+    return _get(reg, "/quote", {"symbol": symbol})
+
+def profile2(reg, symbol: str) -> Optional[Dict]:
+    return _get(reg, "/stock/profile2", {"symbol": symbol})
+
+def earnings_calendar(reg, _from: str, _to: str) -> Optional[Dict]:
+    return _get(reg, "/calendar/earnings", {"from": _from, "to": _to})

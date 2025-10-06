@@ -1,130 +1,166 @@
-# src/core/factors.py
-# Computes raw factors for a ticker using resilient quote fetching and a tiny on-disk sector cache.
-# Inputs: ticker, sector_map (for sector ETF symbol lookup in market_refs)
-# Outputs (dict): {ticker, sector, price, dollar_vol, M_raw, V_raw, S_raw, A_raw, sigma_raw, tau_raw}
+from __future__ import annotations
+from typing import Dict, Optional
+import math
 
-from typing import Dict, Any
-import os, csv
+# price providers (Finnhub-first via quotes_agg)
+from ets.data.providers.quotes_agg import fetch_quote_basic, pct_change_today
 
-from ets.data.providers.quotes_agg import fetch_quote_basic as _qfetch
-from ets.data.market_refs import sector_etf_pct, spy_pct
+# new signal helpers
+from ets.data.signals.sector_features import sector_relative_momentum, etf_flow_proxy
+from ets.data.signals.calendar_loader import day_events, same_day_peers
+from datetime import datetime
+from ets.data.signals.macro_features import vix_risk_signal, yields_proxy
+from ets.data.signals.trends_features import search_interest
+# calendar/peer signals are placeholder-safe for now (we’ll wire real calendar next)
+# from ets.data.signals.calendar_features import calendar_density  # (optional)
 
-# --------------------------------------------------------------------
-# Tiny on-disk sector cache (avoids Yahoo quoteSummary /info 429s)
-# --------------------------------------------------------------------
-_SECTOR_CSV = os.path.join("cache", "sectors.csv")
-_SECTOR_MAP: Dict[str, str] = {}
+# Simple sector -> ETF map (SPDR). If sector missing, SPY fallback.
+_SECTOR_ETF = {
+    "Information Technology": "XLK",
+    "Consumer Discretionary": "XLY",
+    "Financials": "XLF",
+    "Industrials": "XLI",
+    "Energy": "XLE",
+    "Health Care": "XLV",
+    "Utilities": "XLU",
+    "Materials": "XLB",
+    "Real Estate": "XLRE",
+    "Communication Services": "XLC",
+}
 
-def _load_sector_cache():
-    if os.path.exists(_SECTOR_CSV):
-        try:
-            with open(_SECTOR_CSV, "r", newline="", encoding="utf-8") as f:
-                for row in csv.reader(f):
-                    if not row: 
-                        continue
-                    sym = (row[0] or "").upper().strip()
-                    sec = (row[1] or "Unknown").strip() if len(row) > 1 else "Unknown"
-                    if sym:
-                        _SECTOR_MAP[sym] = sec
-        except Exception:
-            # best-effort; ignore cache errors
-            pass
-
-def _save_sector_cache():
-    os.makedirs(os.path.dirname(_SECTOR_CSV) or ".", exist_ok=True)
+def _safe(q: Optional[dict], k: str) -> float:
     try:
-        with open(_SECTOR_CSV, "w", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            for sym, sec in sorted(_SECTOR_MAP.items()):
-                w.writerow([sym, sec])
+        return float(q.get(k) or 0.0)
     except Exception:
-        pass
+        return 0.0
 
-_load_sector_cache()
+def _pos(x: float) -> float:
+    return x if x > 0 else 0.0
 
-def set_sector(symbol: str, sector: str):
-    """Optional helper: allow user to seed/override sectors, then persist."""
+def _nz(x: float) -> float:
+    return x if x != 0 else 1e-9
+
+def compute_raw_factors(symbol: str, sector_map: Dict[str, str] | None = None) -> Optional[Dict]:
+    """
+    Returns a dict with raw features for one symbol.
+    Safe: if anything is missing, fields default to 0 and the row is still returned.
+    """
     s = (symbol or "").upper().strip()
     if not s:
-        return
-    _SECTOR_MAP[s] = sector or "Unknown"
-    _save_sector_cache()
-
-def get_sector(ticker: str) -> str:
-    """Return cached sector; defaults to 'Unknown' (uses _default weights)."""
-    return _SECTOR_MAP.get((ticker or "").upper().strip(), "Unknown")
-
-# --------------------------------------------------------------------
-# Raw factor computation
-# --------------------------------------------------------------------
-def compute_raw_factors(ticker: str, sector_map: dict) -> Dict[str, Any] | None:
-    """
-    Returns dict with raw factor inputs (pre-normalization):
-      M_raw, V_raw, S_raw, A_raw, sigma_raw, tau_raw, price, dollar_vol, sector
-    """
-    # 1) Quotes (robust multi-source aggregator; yfinance first)
-    q = _qfetch(ticker)
-    if not q:
         return None
 
-    last = float(q.get("last", 0.0) or 0.0)
-    openp = float(q.get("open", 0.0) or 0.0)
-    high  = float(q.get("high", last) or last)
-    low   = float(q.get("low", last) or last)
-    vol   = float(q.get("volume", 0.0) or 0.0)
+    q = fetch_quote_basic(s)
+    if not q:
+        # still return a row with zeros so downstream doesn’t crash
+        return {
+            "ticker": s, "sector": (sector_map or {}).get(s, "Unknown"),
+            "open": 0.0, "high": 0.0, "low": 0.0, "last": 0.0, "volume": 0.0,
+            "dollar_volume": 0.0,
+            # legacy 6
+            "M_raw": 0.0, "V_raw": 0.0, "S_raw": 0.0, "A_raw": 0.0, "sigma_raw": 0.0, "tau_raw": 0.0,
+            # new 6
+            "CAL_raw": 0.0, "SRM_raw": 0.0, "PEER_raw": 0.0, "ETFF_raw": 0.0, "VIX_raw": 0.0, "TREND_raw": 0.0,
+        }
 
-    # 2) Basics
-    price = last
-    dollar_vol = price * vol
-    intraday_range = max(high - low, 0.0)
-    intraday_vol_pct = (intraday_range / openp) if openp > 0 else 0.0
-    pct_chg = (last / openp - 1.0) * 100.0 if openp > 0 else 0.0
+    o = _safe(q, "open"); h = _safe(q, "high"); l = _safe(q, "low"); c = _safe(q, "last"); v = _safe(q, "volume")
+    dv = c * v
 
-    # 3) Sector info (cache-based; if unknown, still fine)
-    sector = get_sector(ticker)
+    # --- core 6 raw features (as previously) ---
+    M_raw = (c / _nz(o) - 1.0) * 100.0
+    V_raw = (h - l) / _nz(o) * 100.0
+    mid = (h + l) / 2.0
+    S_raw = ((c - mid) / _nz(o)) * 100.0
+    A_raw = M_raw * math.sqrt(_pos(V_raw)) if V_raw > 0 else M_raw
+    sigma_raw = V_raw * (1.0 / math.sqrt(max(v, 1.0)))  # coarse liquidity-adjusted vol proxy
+    tau_raw = (c - o) / _nz(o) * 100.0 / (math.sqrt(_pos(V_raw)) + 1e-6)  # extension vs span
 
-    # 4) Market/sector references (for S_raw alignment)
-    #    sector_etf_pct uses sector_map to look up the ETF symbol (XLY, XLI, ...)
-    sector_ret = sector_etf_pct(sector, sector_map)  # % change close/open today
-    market_ret = spy_pct()                           # % change close/open today
+    # --- sector map & ETF selection ---
+    sector = (sector_map or {}).get(s, "Unknown")
+    etf = _SECTOR_ETF.get(sector, "SPY")
 
-    # 5) Raw factors ---------------------------------------------------
-    # Momentum (M_raw): today's % change (close vs open), scale-free
-    M_raw = pct_chg
+    # --- new features (6) ---
+    # Determine 'run date' as today's date (UTC) for calendar lookups; main could pass a date later if needed.
+    run_date = datetime.utcnow().strftime("%Y-%m-%d")
+    # Calendar density (count of same-day earnings)
+    try:
+        _events = day_events(run_date)
+        CAL_raw = float(len(_events))
+    except Exception:
+        CAL_raw = 0.0
 
-    # Liquidity (V_raw): dollar volume
-    V_raw = dollar_vol
+    # Sector-relative momentum: stock intraday % – ETF intraday %
+    try:
+        SRM_raw = sector_relative_momentum(s, etf)
+    except Exception:
+        SRM_raw = 0.0
 
-    # Sector/Peer alignment (S_raw): coarse directional alignment
-    def sgn(x: float) -> int:
-        return 1 if x > 0 else (-1 if x < 0 else 0)
+    # Peer earnings drift: mean intraday % of other same-day reporters (capped)
+    try:
+        from ets.data.providers.quotes_agg import pct_change_today
+        peers = same_day_peers(s, run_date, max_peers=10)
+        if peers:
+            vals = [pct_change_today(x) for x in peers]
+            PEER_raw = float(sum(vals) / len(vals))
+        else:
+            PEER_raw = 0.0
+    except Exception:
+        PEER_raw = 0.0
 
-    align = 0
-    if sgn(pct_chg) == sgn(sector_ret): align += 1
-    if sgn(pct_chg) == sgn(market_ret): align += 1
-    if sgn(sector_ret) == sgn(market_ret): align += 1
-    S_raw = align / 3.0  # in {0, 1/3, 2/3, 1}
+    # Sector ETF flows proxy (span% * sqrt(volume))
+    try:
+        ETFF_raw = etf_flow_proxy(etf)
+    except Exception:
+        ETFF_raw = 0.0
 
-    # Analyst/estimate trend (A_raw): neutral on free tier (0.5)
-    A_raw = 0.5
+    # Macro risk via VIX intraday move
+    try:
+        VIX_raw = vix_risk_signal()
+    except Exception:
+        VIX_raw = 0.0
 
-    # Volatility risk proxy (sigma_raw): intraday range vs open (higher = worse)
-    sigma_raw = intraday_vol_pct  # e.g., 0.02 = 2%
+    # Google Trends search interest (cached weekly)
+    try:
+        TREND_raw = float(search_interest(s) or 0.0)
+    except Exception:
+        TREND_raw = 0.0
 
-    # Tail risk (tau_raw): microcap/penny heuristic
-    microcap_flag = 1.0 if dollar_vol < 2_000_000 else 0.0
-    penny_flag = 1.0 if price < 3.0 else 0.0
-    tau_raw = 0.6 * microcap_flag + 0.4 * penny_flag  # 0, 0.4, 0.6, 1.0
+    # Calendar density (placeholder 0 until we wire events list)
+    CAL_raw = 0.0
+
+    # Sector-relative momentum: stock intraday % – ETF intraday %
+    try:
+        SRM_raw = sector_relative_momentum(s, etf)
+    except Exception:
+        SRM_raw = 0.0
+
+    # Peer earnings drift (placeholder 0 until calendar peer list is wired)
+    PEER_raw = 0.0
+
+    # Sector ETF flows proxy (span% * sqrt(volume))
+    try:
+        ETFF_raw = etf_flow_proxy(etf)
+    except Exception:
+        ETFF_raw = 0.0
+
+    # Macro risk via VIX intraday move
+    try:
+        VIX_raw = vix_risk_signal()
+    except Exception:
+        VIX_raw = 0.0
+
+    # Google Trends search interest (cached weekly)
+    try:
+        TREND_raw = float(search_interest(s) or 0.0)
+    except Exception:
+        TREND_raw = 0.0
 
     return {
-        "ticker": ticker,
+        "ticker": s,
         "sector": sector,
-        "price": price,
-        "dollar_vol": dollar_vol,
-        "M_raw": M_raw,
-        "V_raw": V_raw,
-        "S_raw": S_raw,
-        "A_raw": A_raw,
-        "sigma_raw": sigma_raw,
-        "tau_raw": tau_raw,
+        "open": o, "high": h, "low": l, "last": c, "volume": v,
+        "dollar_volume": dv,
+        # legacy 6
+        "M_raw": M_raw, "V_raw": V_raw, "S_raw": S_raw, "A_raw": A_raw, "sigma_raw": sigma_raw, "tau_raw": tau_raw,
+        # new 6
+        "CAL_raw": CAL_raw, "SRM_raw": SRM_raw, "PEER_raw": PEER_raw, "ETFF_raw": ETFF_raw, "VIX_raw": VIX_raw, "TREND_raw": TREND_raw,
     }

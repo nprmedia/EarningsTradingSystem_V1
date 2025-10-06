@@ -6,7 +6,6 @@ def write_csv(df: pd.DataFrame, path: str):
     df.to_csv(path, index=False)
 
 def write_factors(path: str, rows: list):
-    import pandas as pd
     df = pd.DataFrame(rows)
     write_csv(df, path)
 
@@ -15,3 +14,7 @@ def write_scores(path: str, df_scores: pd.DataFrame):
 
 def write_trades(path: str, df_trades: pd.DataFrame):
     write_csv(df_trades, path)
+
+def write_pulls(path: str, rows: list):
+    df = pd.DataFrame(rows)
+    write_csv(df, path)
