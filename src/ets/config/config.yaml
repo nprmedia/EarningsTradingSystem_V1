@@ -2,31 +2,34 @@ app:
   out_dir: out
   logs_dir: logs
   cache_dir: cache
-
 api_limits:
-  finnhub:   { per_second: 30, per_minute: 60, reserve: 2 }
-  yahoo:     { per_second: 5,  per_minute: 20, reserve: 2 }
-  pytrends:  { per_second: 2,  per_minute: 10, reserve: 2 }
-
+  finnhub:
+    per_second: 30
+    per_minute: 60
+    reserve: 2
+  yahoo:
+    per_second: 5
+    per_minute: 20
+    reserve: 2
+  pytrends:
+    per_second: 2
+    per_minute: 10
+    reserve: 2
 normalization:
   winsor_p_low: 0.05
   winsor_p_high: 0.95
   min_universe_for_robust: 5
   clip_min: -5.0
   clip_max: 5.0
-
 universe:
   min_price: 5.0
   dollar_volume_floor: 10000000.0
-
 selection:
   risk_floor_sigma_g: -2.0
   risk_floor_tau_g: -2.0
   score_threshold: 0.0
   max_names: 30
   max_per_sector: 10
-
-# NEW: sector -> ETF map used for sector-relative momentum / flows
 etfs:
   sectors:
     Information Technology: XLK
@@ -40,12 +43,28 @@ etfs:
     Real Estate: XLRE
     Communication Services: XLC
     Consumer Staples: XLP
-    # Fallback for unknown sector labels:
     _default: SPY
-
 features:
-  sector_etfs: ["XLK","XLY","XLF","XLI","XLE","XLV","XLU","XLB","XLRE","XLC","XLP"]
+  sector_etfs:
+  - XLK
+  - XLY
+  - XLF
+  - XLI
+  - XLE
+  - XLV
+  - XLU
+  - XLB
+  - XLRE
+  - XLC
+  - XLP
   peer_drift_window_days: 5
   macro_vix: true
   macro_yields: false
   search_index: true
+  trends_allowlist:
+  - AAPL
+  - MSFT
+  - AMZN
+validation:
+  min_rows: 1
+  min_coverage: 0.8

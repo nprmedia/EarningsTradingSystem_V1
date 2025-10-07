@@ -10,12 +10,16 @@ src/ets.egg-info/requires.txt
 src/ets.egg-info/top_level.txt
 src/ets/config/__init__.py
 src/ets/core/__init__.py
+src/ets/core/env.py
 src/ets/core/factors.py
+src/ets/core/finalize.py
 src/ets/core/normalization.py
+src/ets/core/run_context.py
 src/ets/core/scheduler.py
 src/ets/core/scoring.py
 src/ets/core/selection.py
 src/ets/core/utils.py
+src/ets/core/validator.py
 src/ets/data/__init__.py
 src/ets/data/calendar.py
 src/ets/data/market_refs.py
@@ -33,5 +37,7 @@ src/ets/outputs/logger.py
 src/ets/outputs/telemetry.py
 src/ets/scripts/__init__.py
 src/ets/scripts/fetch_outcomes.py
+src/ets/scripts/prefetch.py
+src/ets/scripts/prefetch_daily.py
 tests/test_normalization.py
 tests/test_scoring.py

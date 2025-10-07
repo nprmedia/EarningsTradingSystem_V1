@@ -1,0 +1,79 @@
+import os, csv, time
+from datetime import datetime, timedelta, UTC
+from ets.core.env import load_env, require_env
+from ets.core.utils import load_yaml, ensure_dirs
+from ets.data.providers.provider_registry import ProviderRegistry
+from ets.data.providers.quotes_agg import set_registry, fetch_quote_basic
+from ets.data.providers.finnhub_client import earnings_calendar, profile2
+
+def _ds(d): return d.strftime("%Y-%m-%d")
+
+def _retry(call, *args, tries=5, base_sleep=1.5, **kwargs):
+    for i in range(tries):
+        try:
+            return call(*args, **kwargs)
+        except Exception as e:
+            if i == tries-1: raise
+            time.sleep(base_sleep * (2**i))
+
+def main(days: int = 7):
+    load_env()
+    require_env("FINNHUB_API_KEY", "FINNHUB_API_KEY missing. Put it in .env (FINNHUB_API_KEY=...)")
+
+    cfg = load_yaml(os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"))
+    cache_dir = cfg["app"]["cache_dir"]; ensure_dirs(cache_dir)
+    reg = ProviderRegistry(cfg); set_registry(reg)
+
+    today = datetime.now(UTC).date()
+    dates = [_ds(today + timedelta(days=i)) for i in range(days)]
+
+    # 1) calendar (with backoff)
+    cal_path = os.path.join(cache_dir, "calendar.csv")
+    rows = []
+    for ds in dates:
+        obj = _retry(earnings_calendar, reg.finnhub, ds, ds) or {}
+        for e in obj.get("earningsCalendar", []) or []:
+            sym = str(e.get("symbol","")).upper()
+            when = str(e.get("hour","") or e.get("time","") or "").lower()
+            sess = "amc" if "amc" in when else ("bmo" if "bmo" in when else "")
+            rows.append([ds, sym, sess])
+    with open(cal_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f); w.writerow(["date","symbol","session"]); w.writerows(rows)
+
+    # 2) sectors
+    sec_path = os.path.join(cache_dir, "sectors.csv")
+    existing = {}
+    if os.path.exists(sec_path):
+        with open(sec_path, "r", encoding="utf-8") as f:
+            for r in csv.reader(f):
+                if len(r)>=2: existing[r[0].upper()] = r[1]
+    new_secs = {}
+    for _, sym, _ in rows:
+        if sym and sym not in existing and sym not in new_secs:
+            prof = _retry(profile2, reg.finnhub, sym) or {}
+            sec = prof.get("finnhubIndustry") or prof.get("sector") or "Unknown"
+            new_secs[sym] = sec
+    existing.update(new_secs)
+    with open(sec_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        for k,v in sorted(existing.items()):
+            w.writerow([k,v])
+
+    # 3) warm ETF quotes
+    for etf in cfg.get("features",{}).get("sector_etfs", ["SPY","XLK","XLY","XLF","XLI","XLE","XLV","XLU","XLB","XLRE","XLC"]):
+        try: fetch_quote_basic(etf)
+        except Exception: pass
+
+    # 4) expire trends cache older than 7 days (if exists)
+    tdir = os.path.join("cache","trends")
+    if os.path.isdir(tdir):
+        cutoff = time.time() - 7*86400
+        for fn in os.listdir(tdir):
+            p = os.path.join(tdir, fn)
+            try:
+                if os.path.getmtime(p) < cutoff: os.remove(p)
+            except Exception: pass
+
+    print(f"[OK] Prefetch complete: calendar={len(rows)} sectors_added={len(new_secs)}")
+if __name__ == "__main__":
+    main()

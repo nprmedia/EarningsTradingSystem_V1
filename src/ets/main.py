@@ -25,6 +25,9 @@ from ets.outputs.csv_writer import (
     write_pulls,
 )
 from ets.outputs.telemetry import write_telemetry
+from ets.core.env import load_env, require_env
+from ets.data.signals.calendar_loader import set_fallback_peers
+from ets.core.finalize import finalize_results
 
 # Finnhub-first provider registry + pull log
 from ets.data.providers.provider_registry import ProviderRegistry
@@ -105,6 +108,12 @@ def main():
     cfg, wts = load_configs()
 
     # Initialize providers (Finnhub-first) and attach to quotes aggregator
+    load_env()
+    # If you want to run without Finnhub calendar, comment the next line.
+    try:
+        require_env('FINNHUB_API_KEY', 'FINNHUB_API_KEY missing. Put it in .env')
+    except Exception as e:
+        print('[WARN]', e)
     reg = ProviderRegistry(cfg)
     set_registry(reg)
     set_calendar_registry(reg)
@@ -117,6 +126,7 @@ def main():
 
     # 1) Universe
     universe = build_universe(args.date, args.tickers, reg)
+    set_fallback_peers(list(universe))
     if not universe:
         print("No tickers found from calendar or CSV. Provide --tickers path.")
         sys.exit(0)
@@ -211,6 +221,9 @@ def main():
     from ets.data.providers.quotes_agg import get_pull_log
     write_pulls(pulls_path, get_pull_log())
     write_telemetry(tele_path, reg.stats())
+
+    # write trader-friendly clean file
+    finalize_results(scores_path, out_dir)
 
     print(f"[OK] Wrote:\n  {factors_path}\n  {scores_path}\n  {trades_path}\n  {pulls_path}\n  {tele_path}")
 

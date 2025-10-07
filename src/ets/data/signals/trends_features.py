@@ -3,12 +3,15 @@ from typing import Optional
 from pytrends.request import TrendReq
 
 _CACHE = os.path.join("cache", "trends")
+ALLOWLIST = None  # set at runtime from config if provided
 os.makedirs(_CACHE, exist_ok=True)
 
 def _cache_path(keyword: str) -> str:
     return os.path.join(_CACHE, f"{keyword.upper()}.json")
 
 def search_interest(keyword: str, lookback_days: int = 365) -> Optional[float]:
+    if ALLOWLIST is not None and keyword.upper() not in ALLOWLIST:
+        return 0.0
     path = _cache_path(keyword)
     now = time.time()
     if os.path.exists(path) and (now - os.path.getmtime(path) < 7*24*3600):
@@ -26,3 +29,8 @@ def search_interest(keyword: str, lookback_days: int = 365) -> Optional[float]:
         return val
     except Exception:
         return 0.0
+
+
+def set_allowlist(symbols: list[str] | None):
+    global ALLOWLIST
+    ALLOWLIST = [s.upper() for s in symbols] if symbols else None

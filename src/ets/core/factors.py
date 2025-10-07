@@ -7,6 +7,7 @@ from ets.data.providers.quotes_agg import fetch_quote_basic, pct_change_today
 
 # new signal helpers
 from ets.data.signals.sector_features import sector_relative_momentum, etf_flow_proxy
+from ets.core.run_context import get_run_date
 from ets.data.signals.calendar_loader import day_events, same_day_peers
 from datetime import datetime
 from ets.data.signals.macro_features import vix_risk_signal, yields_proxy
@@ -79,8 +80,9 @@ def compute_raw_factors(symbol: str, sector_map: Dict[str, str] | None = None) -
     etf = _SECTOR_ETF.get(sector, "SPY")
 
     # --- new features (6) ---
-    # Determine 'run date' as today's date (UTC) for calendar lookups; main could pass a date later if needed.
-    run_date = datetime.utcnow().strftime("%Y-%m-%d")
+    run_date = get_run_date("")
+    if not run_date:
+        run_date = sector  # harmless sentinel; yields 0 events
     # Calendar density (count of same-day earnings)
     try:
         _events = day_events(run_date)
