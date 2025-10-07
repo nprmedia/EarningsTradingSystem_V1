@@ -16,18 +16,22 @@ def _retry(call, *args, tries=5, base_sleep=1.5, **kwargs):
             if i == tries-1: raise
             time.sleep(base_sleep * (2**i))
 
-def main(days: int = 7):
+def main(days: int = 7, start: str | None = None):
     load_env()
-    require_env("FINNHUB_API_KEY", "FINNHUB_API_KEY missing. Put it in .env (FINNHUB_API_KEY=...)")
+    # Key is strongly recommended; we only warn if missing
+    try:
+        require_env("FINNHUB_API_KEY", "FINNHUB_API_KEY missing. Put it in .env (FINNHUB_API_KEY=...)")
+    except Exception as e:
+        print("[WARN]", e)
 
     cfg = load_yaml(os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"))
     cache_dir = cfg["app"]["cache_dir"]; ensure_dirs(cache_dir)
     reg = ProviderRegistry(cfg); set_registry(reg)
 
-    today = datetime.now(UTC).date()
-    dates = [_ds(today + timedelta(days=i)) for i in range(days)]
+    base = datetime.strptime(start, "%Y-%m-%d").date() if start else datetime.now(UTC).date()
+    dates = [_ds(base + timedelta(days=i)) for i in range(days)]
 
-    # 1) calendar (with backoff)
+    # 1) calendar
     cal_path = os.path.join(cache_dir, "calendar.csv")
     rows = []
     for ds in dates:
@@ -64,7 +68,7 @@ def main(days: int = 7):
         try: fetch_quote_basic(etf)
         except Exception: pass
 
-    # 4) expire trends cache older than 7 days (if exists)
+    # 4) expire trends cache older than 7 days
     tdir = os.path.join("cache","trends")
     if os.path.isdir(tdir):
         cutoff = time.time() - 7*86400
@@ -75,5 +79,11 @@ def main(days: int = 7):
             except Exception: pass
 
     print(f"[OK] Prefetch complete: calendar={len(rows)} sectors_added={len(new_secs)}")
+
 if __name__ == "__main__":
-    main()
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--days", type=int, default=7)
+    ap.add_argument("--start", type=str, default=None, help="YYYY-MM-DD (inclusive)")
+    args = ap.parse_args()
+    main(days=args.days, start=args.start)

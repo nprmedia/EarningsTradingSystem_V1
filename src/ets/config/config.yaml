@@ -24,6 +24,14 @@ normalization:
 universe:
   min_price: 5.0
   dollar_volume_floor: 10000000.0
+  horizon_days: 2
+  session: amc
+  min_dollar_vol: 5000000.0
+  max_names: 60
+  sector_allowlist:
+  - Information Technology
+  - Consumer Discretionary
+  - Health Care
 selection:
   risk_floor_sigma_g: -2.0
   risk_floor_tau_g: -2.0

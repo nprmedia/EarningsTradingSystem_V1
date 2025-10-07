@@ -36,6 +36,7 @@ src/ets/outputs/csv_writer.py
 src/ets/outputs/logger.py
 src/ets/outputs/telemetry.py
 src/ets/scripts/__init__.py
+src/ets/scripts/build_universe.py
 src/ets/scripts/fetch_outcomes.py
 src/ets/scripts/prefetch.py
 src/ets/scripts/prefetch_daily.py
