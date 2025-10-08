@@ -1,15 +1,13 @@
-# Python
-__pycache__/
+# ETS defaults
+/.env
+/.venv
+/__pycache__/
 *.pyc
-.venv/
-venv/
-env/
-
-# Local files
-.env
-out/
+.DS_Store
+/out/
 logs/
 cache/
-
-# VSCode
-.vscode/*.log
+*.bak
+*.pre-*
+*.fix-*
+*.reindent-*

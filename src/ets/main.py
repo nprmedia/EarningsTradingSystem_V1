@@ -17,7 +17,7 @@ from ets.core.factors import compute_raw_factors
 from ets.core.normalization import robust_normalize_df
 from ets.core.scoring import compute_scores
 from ets.core.selection import apply_filters_and_select
-from ets.outputs.csv_writer import write_factors, write_scores, write_trades, write_pulls
+from ets.outputs.csv_writer import write_factors, write_pulls
 from ets.outputs.telemetry import write_telemetry
 from ets.core.env import load_env, require_env
 from ets.data.signals.calendar_loader import set_fallback_peers
@@ -54,7 +54,6 @@ DEFAULT_CFG = {
 }
 
 
-
 def _coerce_base(base_val, norm_cols):
     """
     Ensure base is a dict keyed by factor names (e.g., 'M','V','S',...).
@@ -64,7 +63,20 @@ def _coerce_base(base_val, norm_cols):
     # infer factor keys from norm_cols: "M_raw" -> "M"
     factor_keys = [c.replace("_raw", "") for c in (norm_cols or [])]
     if not factor_keys:
-        factor_keys = ["M","V","S","A","sigma","tau","CAL","SRM","PEER","ETFF","VIX","TREND"]
+        factor_keys = [
+            "M",
+            "V",
+            "S",
+            "A",
+            "sigma",
+            "tau",
+            "CAL",
+            "SRM",
+            "PEER",
+            "ETFF",
+            "VIX",
+            "TREND",
+        ]
     # dict already
     if isinstance(base_val, dict):
         return base_val
@@ -74,6 +86,7 @@ def _coerce_base(base_val, norm_cols):
     except Exception:
         scalar = 1.0
     return {k: scalar for k in factor_keys}
+
 
 # ---------- Helpers ----------
 
@@ -105,6 +118,12 @@ def parse_args():
         "--tickers",
         help="Path to CSV with tickers (one per line). If omitted, tries Finnhub calendar.",
     )
+    ap.add_argument(
+        "--dry",
+        action="store_true",
+        help="Run deterministic pipeline without live API calls or writes.",
+    )
+
     return ap.parse_args()
 
 
@@ -162,7 +181,9 @@ def _load_sector_map_from_cache(cache_dir: str = "cache") -> dict:
     return mapping
 
 
-def build_universe(date_str: str, tickers_csv: str | None, provider_reg: ProviderRegistry | None):
+def build_universe(
+    date_str: str, tickers_csv: str | None, provider_reg: ProviderRegistry | None
+):
     if tickers_csv:
         syms = from_csv(tickers_csv)
     else:
@@ -178,6 +199,10 @@ def main():
     args = parse_args()
     cfg, wts = load_configs()
 
+    dry_run = getattr(args, "dry", False)
+    if dry_run:
+        print("[DRY] Running in dry-run mode — no network calls or file writes.")
+        os.environ["ETS_MODE"] = "dry"
     # Optional: session-specific weights override if present
     try:
         sess = getattr(args, "session", None)
@@ -295,15 +320,19 @@ def main():
     trades_path = os.path.join(out_dir, f"{rid}_trades.csv")
     pulls_path = os.path.join(out_dir, f"{rid}_pulls.csv")
     tele_path = os.path.join(out_dir, f"{rid}_telemetry.csv")
+    if not dry_run:
 
-    write_factors(factors_path, raw_rows)
+        write_factors(factors_path, raw_rows)
     df_scores.to_csv(scores_path, index=False)
     df_trades.to_csv(trades_path, index=False)
-    write_pulls(pulls_path, get_pull_log())
-    write_telemetry(tele_path, reg.stats())
+    if not dry_run:
+        write_pulls(pulls_path, get_pull_log())
+        if not dry_run:
+            write_telemetry(tele_path, reg.stats())
 
     # write trader-friendly clean file
-    finalize_results(scores_path, out_dir)
+    if not dry_run:
+        finalize_results(scores_path, out_dir)
 
     print(
         f"[OK] Wrote:\n  {factors_path}\n  {scores_path}\n  {trades_path}\n  {pulls_path}\n  {tele_path}"
