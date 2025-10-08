@@ -84,7 +84,7 @@ def parse_args():
 def load_configs():
     cfg_path, wts_path = _config_paths()
     cfg = load_yaml(cfg_path)
-    cfg = deep_merge(DEFAULT_CFG, cfg or {})
+cfg = deep_merge(DEFAULT_CFG, cfg or {})
     wts = DEFAULT_WEIGHTS
     if not isinstance(wts.get('caps'), dict):
         raise SystemExit("[FATAL] Weights missing 'caps' for session=%r." % (session,))
