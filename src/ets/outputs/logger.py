@@ -1,5 +1,7 @@
-import logging, os
+import logging
+import os
 from datetime import datetime
+
 
 def get_logger(name: str, logs_dir: str = "logs"):
     os.makedirs(logs_dir, exist_ok=True)
@@ -9,7 +11,11 @@ def get_logger(name: str, logs_dir: str = "logs"):
     if not logger.handlers:
         fh = logging.FileHandler(log_path)
         ch = logging.StreamHandler()
-        fmt = logging.Formatter("%(asctime)s %(levelname)s | %(name)s | %(message)s", "%Y-%m-%d %H:%M:%S")
-        fh.setFormatter(fmt); ch.setFormatter(fmt)
-        logger.addHandler(fh); logger.addHandler(ch)
+        fmt = logging.Formatter(
+            "%(asctime)s %(levelname)s | %(name)s | %(message)s", "%Y-%m-%d %H:%M:%S"
+        )
+        fh.setFormatter(fmt)
+        ch.setFormatter(fmt)
+        logger.addHandler(fh)
+        logger.addHandler(ch)
     return logger

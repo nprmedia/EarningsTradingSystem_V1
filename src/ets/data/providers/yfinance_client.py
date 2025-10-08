@@ -1,17 +1,23 @@
-import time, io, os, sys, contextlib
+import time
+import io
+import sys
+import contextlib
 from typing import Optional
 import requests
 import yfinance as yf
 
 # ---- Robust session: browser UA + retry on transient failures ----
 _SESSION = requests.Session()
-_SESSION.headers.update({
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                  "AppleWebKit/537.36 (KHTML, like Gecko) "
-                  "Chrome/124.0.0.0 Safari/537.36"
-})
-_RETRIES = 2         # keep light to avoid spammy retries
-_BACKOFF = 0.8       # seconds
+_SESSION.headers.update(
+    {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    }
+)
+_RETRIES = 2  # keep light to avoid spammy retries
+_BACKOFF = 0.8  # seconds
+
 
 @contextlib.contextmanager
 def _suppress_prints():
@@ -24,6 +30,7 @@ def _suppress_prints():
     finally:
         sys.stdout, sys.stderr = old_out, old_err
 
+
 def _download_1d_1d(symbol: str) -> Optional[dict]:
     """Use yf.download, but silence prints and handle errors."""
     for i in range(_RETRIES):
@@ -31,7 +38,7 @@ def _download_1d_1d(symbol: str) -> Optional[dict]:
             with _suppress_prints():
                 df = yf.download(
                     tickers=symbol,
-                    period="5d",          # improve odds of at least 1 full row
+                    period="5d",  # improve odds of at least 1 full row
                     interval="1d",
                     auto_adjust=False,
                     progress=False,
@@ -44,7 +51,7 @@ def _download_1d_1d(symbol: str) -> Optional[dict]:
                 return {
                     "open": float(row["Open"]),
                     "high": float(row["High"]),
-                    "low":  float(row["Low"]),
+                    "low": float(row["Low"]),
                     "last": float(row["Close"]),
                     "volume": float(row.get("Volume", 0.0) or 0.0),
                 }
@@ -52,6 +59,7 @@ def _download_1d_1d(symbol: str) -> Optional[dict]:
             pass
         time.sleep(_BACKOFF * (i + 1))
     return None
+
 
 def fetch_quote_basic(ticker: str) -> Optional[dict]:
     """
@@ -74,7 +82,7 @@ def fetch_quote_basic(ticker: str) -> Optional[dict]:
                     "last": float(row["Close"]),
                     "open": float(row["Open"]),
                     "high": float(row["High"]),
-                    "low":  float(row["Low"]),
+                    "low": float(row["Low"]),
                     "volume": float(row.get("Volume", 0.0) or 0.0),
                 }
         except Exception:

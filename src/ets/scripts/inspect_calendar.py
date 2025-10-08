@@ -1,5 +1,6 @@
-import argparse, sys
-from datetime import date
+import argparse
+import sys
+
 try:
     from ets.scripts import build_universe as bu
 except Exception as e:
@@ -21,7 +22,8 @@ try:
     print(f"[INFO] Prefetch returned {n} rows")
     it = iter(res)
     for i, x in enumerate(it):
-        if i >= 50: break
+        if i >= 50:
+            break
         print(x)
 except Exception as e:
     print("[WARN] prefetch failed:", e)

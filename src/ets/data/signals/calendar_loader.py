@@ -8,16 +8,20 @@ from ets.core.run_context import get_run_date
 
 FALLBACK_PEERS: list[str] | None = None
 
+
 def set_fallback_peers(symbols: list[str] | None):
     global FALLBACK_PEERS
     FALLBACK_PEERS = [s.upper() for s in symbols] if symbols else None
 
+
 _REG: Optional[ProviderRegistry] = None
 _CACHE: dict[str, dict] = {}  # date -> {"ts": time.time(), "events": [..]}
+
 
 def set_registry(reg: ProviderRegistry):
     global _REG
     _REG = reg
+
 
 def _fetch_day(date_str: str) -> List[Dict]:
     """
@@ -39,20 +43,34 @@ def _fetch_day(date_str: str) -> List[Dict]:
         for e in obj["earningsCalendar"]:
             # normalize minimal fields we need
             sym = str(e.get("symbol", "")).upper()
-            when = str(e.get("hour", "") or e.get("time", "") or "").lower()  # sometimes "bmo"/"amc"
-            out.append({"symbol": sym, "date": date_str, "session": ("amc" if "amc" in when else "bmo" if "bmo" in when else "")})
+            when = str(
+                e.get("hour", "") or e.get("time", "") or ""
+            ).lower()  # sometimes "bmo"/"amc"
+            out.append(
+                {
+                    "symbol": sym,
+                    "date": date_str,
+                    "session": (
+                        "amc" if "amc" in when else "bmo" if "bmo" in when else ""
+                    ),
+                }
+            )
     # Fallback: if API returned no events for the run date, synthesize from provided peers
     if not out and FALLBACK_PEERS is not None:
-        out = [{"symbol": s, "date": date_str, "session": "amc"} for s in FALLBACK_PEERS]
+        out = [
+            {"symbol": s, "date": date_str, "session": "amc"} for s in FALLBACK_PEERS
+        ]
     _CACHE[date_str] = {"ts": now, "events": out}
     return out
+
 
 def day_events(date_str: str) -> List[Dict]:
     return list(_fetch_day(date_str))
 
+
 def same_day_peers(symbol: str, date_str: str, max_peers: int = 10) -> List[str]:
     s = (symbol or "").upper()
-    ev = [e.get("symbol","") for e in _fetch_day(date_str)]
+    ev = [e.get("symbol", "") for e in _fetch_day(date_str)]
     peers = [x for x in ev if x and x != s]
     # cap to avoid too many downstream quote calls
     return peers[:max_peers]

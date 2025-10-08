@@ -2,10 +2,12 @@ import os
 import requests
 from .rate_limiter import RateLimiter
 
+
 class ProviderRegistry:
     """
     Holds per-API sessions and rate limiters from config.
     """
+
     def __init__(self, cfg: dict):
         api_cfg = cfg.get("api_limits", {})
         self._regs = {}
@@ -27,7 +29,8 @@ class ProviderRegistry:
 
         # Yahoo (backup)
         yh = api_cfg.get("yahoo", {"per_second": 5, "per_minute": 20, "reserve": 2})
-        s = requests.Session(); s.headers.update({"User-Agent": "Mozilla/5.0"})
+        s = requests.Session()
+        s.headers.update({"User-Agent": "Mozilla/5.0"})
         self.yahoo = {
             "session": s,
             "limiter": RateLimiter(

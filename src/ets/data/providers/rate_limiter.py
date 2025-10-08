@@ -2,20 +2,29 @@ from collections import deque
 from time import monotonic, sleep
 from typing import Dict
 
+
 class RateLimiter:
     """
     Rolling-window limiter with per-second and per-minute caps and a 'reserve'
     (we keep at least 'reserve' calls unused in each window).
     """
-    def __init__(self, per_second: int, per_minute: int, reserve: int = 2, name: str = "api"):
+
+    def __init__(
+        self, per_second: int, per_minute: int, reserve: int = 2, name: str = "api"
+    ):
         self.name = name
         self.ps = max(0, per_second - reserve) if per_second else 0
         self.pm = max(0, per_minute - reserve) if per_minute else 0
         self.sec_q = deque()  # timestamps last 1s
         self.min_q = deque()  # timestamps last 60s
         self.stats = {
-            "name": name, "per_second": per_second, "per_minute": per_minute, "reserve": reserve,
-            "allowed": 0, "blocked": 0, "sleeps": 0,
+            "name": name,
+            "per_second": per_second,
+            "per_minute": per_minute,
+            "reserve": reserve,
+            "allowed": 0,
+            "blocked": 0,
+            "sleeps": 0,
         }
 
     def _prune(self, now: float):
@@ -36,7 +45,8 @@ class RateLimiter:
         while True:
             now = monotonic()
             if self._room(now):
-                self.sec_q.append(now); self.min_q.append(now)
+                self.sec_q.append(now)
+                self.min_q.append(now)
                 self.stats["allowed"] += 1
                 return
             if not blocking:
