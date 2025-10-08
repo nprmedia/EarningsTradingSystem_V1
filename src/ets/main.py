@@ -60,7 +60,6 @@ def _coerce_base(base_val, norm_cols):
     If base_val is scalar, broadcast to all factor keys inferred from norm_cols.
     norm_cols are like ["M_raw","V_raw",...]; we strip "_raw" to get keys.
     """
-    # infer factor keys from norm_cols: "M_raw" -> "M"
     factor_keys = [c.replace("_raw", "") for c in (norm_cols or [])]
     if not factor_keys:
         factor_keys = [
@@ -77,10 +76,8 @@ def _coerce_base(base_val, norm_cols):
             "VIX",
             "TREND",
         ]
-    # dict already
     if isinstance(base_val, dict):
         return base_val
-    # broadcast scalar / fallback
     try:
         scalar = float(base_val)
     except Exception:
@@ -123,7 +120,6 @@ def parse_args():
         action="store_true",
         help="Run deterministic pipeline without live API calls or writes.",
     )
-
     return ap.parse_args()
 
 
@@ -134,12 +130,10 @@ def load_configs():
     cfg = load_yaml(cfg_path)
     cfg = deep_merge(DEFAULT_CFG, cfg or {})
 
-    # weights.yaml (optional) – DEFAULT_WEIGHTS comes from ets.config.defaults
-    # If file exists and has content, merge over defaults; otherwise keep defaults.
+    # weights.yaml (optional)
     wts_file = load_yaml(wts_path)
     wts = deep_merge(DEFAULT_WEIGHTS, wts_file or {})
 
-    # Ensure required keys exist so downstream code can .get(...) safely
     if "base" not in wts:
         wts["base"] = 1.0
     try:
@@ -149,12 +143,7 @@ def load_configs():
     wts.setdefault("caps", {})
     wts.setdefault("multipliers", {})
 
-    # Create app dirs
-    ensure_dirs(
-        cfg["app"]["out_dir"],
-        cfg["app"]["logs_dir"],
-        cfg["app"]["cache_dir"],
-    )
+    ensure_dirs(cfg["app"]["out_dir"], cfg["app"]["logs_dir"], cfg["app"]["cache_dir"])
     return cfg, wts
 
 
@@ -187,9 +176,77 @@ def build_universe(
     if tickers_csv:
         syms = from_csv(tickers_csv)
     else:
-        # Use Finnhub if available; otherwise empty
         syms = from_finnhub(date_str)
     return syms or []
+
+
+# ---------- Tiered Strictness Gate ----------
+
+
+def _phase2_gate(factors_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Phase-2 completeness (Tiered Strictness):
+    - Require only CORE free, reliable factors
+    - Allow OPTIONAL factors; do not fail if missing
+    """
+    CORE = [
+        "M_raw",
+        "V_raw",
+        "S_raw",
+        "A_raw",
+        "sigma_raw",
+        "tau_raw",
+        "CAL_raw",
+        "SRM_raw",
+        "PEER_raw",
+        "ETFF_raw",
+        "VIX_raw",
+        "TREND_raw",
+    ]
+    OPTIONAL = [
+        "EPSG_raw",
+        "ROE_raw",
+        "PEG_raw",
+        "DE_raw",
+        "SI_raw",
+        "OPT_SK_raw",
+        "INSIDER_raw",
+        "NEWS_raw",
+        "RISK_APP_raw",
+        "LIQ_raw",
+        "EAT_raw",
+    ]
+
+    # Structural check: all CORE columns must exist in the frame
+    missing_cols = [c for c in CORE if c not in factors_df.columns]
+    if missing_cols:
+        raise SystemExit(
+            f"[FATAL] Missing required CORE factor columns: {missing_cols}"
+        )
+
+    # Drop rows with any null in CORE factors (strict)
+    before = len(factors_df)
+    factors_df = factors_df.dropna(subset=CORE)
+    dropped = before - len(factors_df)
+    if dropped > 0:
+        print(f"[INFO] Dropped {dropped} ticker(s) lacking full CORE factor coverage.")
+
+    # Optional coverage stats (purely informative)
+    opt_present = [c for c in OPTIONAL if c in factors_df.columns]
+    if opt_present:
+        factors_df["_optional_count"] = factors_df[opt_present].notna().sum(axis=1)
+        present_n = len(opt_present)
+        mean_cov = (
+            float(factors_df["_optional_count"].mean()) if len(factors_df) else 0.0
+        )
+        print(
+            f"[INFO] OPTIONAL factors available this run: {present_n} -> {opt_present}"
+        )
+        print(f"[INFO] Mean OPTIONAL coverage per ticker: {mean_cov:.2f}/{present_n}")
+    else:
+        print("[INFO] No OPTIONAL factors available this run (still OK).")
+
+    return factors_df
 
 
 # ---------- Main ----------
@@ -203,13 +260,13 @@ def main():
     if dry_run:
         print("[DRY] Running in dry-run mode — no network calls or file writes.")
         os.environ["ETS_MODE"] = "dry"
+
     # Optional: session-specific weights override if present
     try:
         sess = getattr(args, "session", None)
         if isinstance(wts, dict) and isinstance(wts.get("by_session"), dict):
             if sess in wts["by_session"]:
                 wts = deep_merge(wts, wts["by_session"][sess] or {})
-                # re-ensure base is numeric
                 wts["base"] = float(wts.get("base", 1.0))
     except Exception:
         pass
@@ -235,7 +292,7 @@ def main():
     set_fallback_peers(list(universe))
     if not universe:
         print("No tickers found from calendar or CSV. Provide --tickers path.")
-        sys.exit(0)
+        return 0
 
     # 2) Raw factors (gentle throttle to reduce upstream 429s even with limiter)
     raw_rows = []
@@ -243,15 +300,17 @@ def main():
         row = compute_raw_factors(t, sector_map)
         if row:
             raw_rows.append(row)
-        # very light sleep to avoid synchronized bursts across providers
         if idx % 3 == 0:
             time.sleep(0.20)
 
     if not raw_rows:
         print("No factor rows computed.")
-        sys.exit(0)
+        return 0
 
     factors_df = pd.DataFrame(raw_rows)
+
+    # 2b) Phase-2 completeness gate (Tiered Strictness)
+    factors_df = _phase2_gate(factors_df)
 
     # Defensive aliases to smooth legacy/new column naming
     if "price" not in factors_df.columns and "last" in factors_df.columns:
@@ -264,8 +323,9 @@ def main():
         else:
             factors_df["dollar_vol"] = 0.0
 
-    # 3) Normalize
-    norm_cols = [
+    # 3) Normalize — dynamic column list (CORE first, then any other *_raw present)
+    norm_cols = [c for c in factors_df.columns if c.endswith("_raw")]
+    CORE_ORDER = [
         "M_raw",
         "V_raw",
         "S_raw",
@@ -279,6 +339,10 @@ def main():
         "VIX_raw",
         "TREND_raw",
     ]
+    core_in = [c for c in CORE_ORDER if c in norm_cols]
+    rest = [c for c in norm_cols if c not in CORE_ORDER]
+    norm_cols = core_in + sorted(rest)
+
     factors_df = robust_normalize_df(
         factors_df,
         cols=norm_cols,
@@ -288,6 +352,7 @@ def main():
         clip_min=cfg["normalization"]["clip_min"],
         clip_max=cfg["normalization"]["clip_max"],
     )
+
     # rename *_raw_norm -> *_norm
     rename_map = {c + "_norm": c.replace("_raw", "") + "_norm" for c in norm_cols}
     factors_df.rename(columns=rename_map, inplace=True)
@@ -320,24 +385,21 @@ def main():
     trades_path = os.path.join(out_dir, f"{rid}_trades.csv")
     pulls_path = os.path.join(out_dir, f"{rid}_pulls.csv")
     tele_path = os.path.join(out_dir, f"{rid}_telemetry.csv")
-    if not dry_run:
 
+    if not dry_run:
         write_factors(factors_path, raw_rows)
     df_scores.to_csv(scores_path, index=False)
     df_trades.to_csv(trades_path, index=False)
     if not dry_run:
         write_pulls(pulls_path, get_pull_log())
-        if not dry_run:
-            write_telemetry(tele_path, reg.stats())
-
-    # write trader-friendly clean file
-    if not dry_run:
+        write_telemetry(tele_path, reg.stats())
         finalize_results(scores_path, out_dir)
 
     print(
         f"[OK] Wrote:\n  {factors_path}\n  {scores_path}\n  {trades_path}\n  {pulls_path}\n  {tele_path}"
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

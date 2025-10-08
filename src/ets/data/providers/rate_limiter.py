@@ -1,63 +1,114 @@
+from __future__ import annotations
+
+import random
+import time
 from collections import deque
-from time import monotonic, sleep
-from typing import Dict
+from typing import Callable, TypeVar
+
+T = TypeVar("T")
 
 
 class RateLimiter:
     """
-    Rolling-window limiter with per-second and per-minute caps and a 'reserve'
-    (we keep at least 'reserve' calls unused in each window).
+    Sliding-window limiter: enforces per-second and per-minute caps.
+
+    Args:
+        per_second: allowed calls per rolling second.
+        per_minute: allowed calls per rolling minute.
+        burst: extra short-term headroom allowed above strict caps.
+        reserve: capacity kept unused as safety headroom (e.g., shared quota).
+        **_ignore: tolerated for forward compatibility with registry kwargs.
     """
 
     def __init__(
-        self, per_second: int, per_minute: int, reserve: int = 2, name: str = "api"
+        self,
+        per_second: int = 5,
+        per_minute: int = 30,
+        burst: int = 2,
+        *,
+        reserve: int = 0,
+        **_ignore,
     ):
-        self.name = name
-        self.ps = max(0, per_second - reserve) if per_second else 0
-        self.pm = max(0, per_minute - reserve) if per_minute else 0
-        self.sec_q = deque()  # timestamps last 1s
-        self.min_q = deque()  # timestamps last 60s
-        self.stats = {
-            "name": name,
-            "per_second": per_second,
-            "per_minute": per_minute,
-            "reserve": reserve,
-            "allowed": 0,
-            "blocked": 0,
-            "sleeps": 0,
-        }
+        self.per_second = max(1, int(per_second))
+        self.per_minute = max(self.per_second, int(per_minute))
+        self.burst = max(0, int(burst))
+        self.reserve = max(0, int(reserve))
 
-    def _prune(self, now: float):
-        one_sec_ago = now - 1.0
-        one_min_ago = now - 60.0
-        while self.sec_q and self.sec_q[0] < one_sec_ago:
-            self.sec_q.popleft()
-        while self.min_q and self.min_q[0] < one_min_ago:
-            self.min_q.popleft()
+        self._sec = deque()  # timestamps within last 1s
+        self._min = deque()  # timestamps within last 60s
 
-    def _room(self, now: float) -> bool:
+        self.stats = {"allowed": 0, "blocked": 0, "sleep_ms": 0.0}
+
+    def _prune(self, now: float) -> None:
+        while self._sec and now - self._sec[0] > 1.0:
+            self._sec.popleft()
+        while self._min and now - self._min[0] > 60.0:
+            self._min.popleft()
+
+    def _has_room(self) -> bool:
+        sec_cap = max(1, self.per_second + self.burst - self.reserve)
+        min_cap = max(1, self.per_minute + self.burst - self.reserve)
+        return len(self._sec) < sec_cap and len(self._min) < min_cap
+
+    def acquire(self) -> None:
+        """Block until a call is allowed; then record it."""
+        now = time.monotonic()
         self._prune(now)
-        ok_sec = (self.ps == 0) or (len(self.sec_q) < self.ps)
-        ok_min = (self.pm == 0) or (len(self.min_q) < self.pm)
-        return ok_sec and ok_min
 
-    def acquire(self, blocking: bool = True, jitter_s: float = 0.03):
-        while True:
-            now = monotonic()
-            if self._room(now):
-                self.sec_q.append(now)
-                self.min_q.append(now)
-                self.stats["allowed"] += 1
-                return
-            if not blocking:
-                self.stats["blocked"] += 1
-                raise RuntimeError(f"Rate limited: {self.name}")
+        while not self._has_room():
+            self.stats["blocked"] += 1
+
+            now = time.monotonic()
             self._prune(now)
-            to_sec = (self.sec_q[0] + 1.0 - now) if self.sec_q else 0.01
-            to_min = (self.min_q[0] + 60.0 - now) if self.min_q else 0.01
-            wait = max(to_sec, to_min) + jitter_s
-            self.stats["sleeps"] += 1
-            sleep(max(0.01, wait))
 
-    def get_stats(self) -> Dict:
-        return dict(self.stats)
+            sec_wait = 0.0 if not self._sec else max(0.0, 1.0 - (now - self._sec[0]))
+            min_wait = 0.0 if not self._min else max(0.0, 60.0 - (now - self._min[0]))
+            sleep_for = max(0.01, min(sec_wait, min_wait))
+            sleep_for += random.uniform(0.0, 0.05)  # jitter
+
+            time.sleep(sleep_for)
+            self.stats["sleep_ms"] += sleep_for * 1000.0
+
+            now = time.monotonic()
+            self._prune(now)
+
+        self._sec.append(now)
+        self._min.append(now)
+        self.stats["allowed"] += 1
+
+
+def with_backoff(
+    call: Callable[[], T],
+    *,
+    tries: int = 4,
+    base: float = 0.25,
+    max_sleep: float = 4.0,
+    jitter: float = 0.25,
+) -> T:
+    """
+    Execute `call` with exponential backoff on exception.
+
+    Args:
+        tries: total attempts (>=1)
+        base: initial sleep seconds
+        max_sleep: upper bound per sleep
+        jitter: random [0, jitter] seconds added each sleep
+    """
+    attempts = max(1, int(tries))
+    delay = max(0.0, float(base))
+    max_sleep = max(0.0, float(max_sleep))
+    jitter = max(0.0, float(jitter))
+
+    last_exc: Exception | None = None
+    for i in range(attempts):
+        try:
+            return call()
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            if i == attempts - 1:
+                break
+            sleep_for = min(max_sleep, delay + random.uniform(0.0, jitter))
+            time.sleep(sleep_for)
+            delay = min(max_sleep, delay * 2.0 if delay else base or 0.25)
+    assert last_exc is not None
+    raise last_exc
