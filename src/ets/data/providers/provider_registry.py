@@ -1,6 +1,9 @@
 import os
 import requests
 from .rate_limiter import RateLimiter
+from dotenv import load_dotenv
+
+load_dotenv("/workspaces/EarningsTradingSystem_V1/.env", override=True)
 
 
 class ProviderRegistry:
@@ -26,6 +29,16 @@ class ProviderRegistry:
             "base": "https://finnhub.io/api/v1",
         }
         self._regs["finnhub"] = self.finnhub
+        # inject finnhub env if missing
+        try:
+            if isinstance(self.finnhub, dict):
+                self.finnhub.setdefault(
+                    "base", os.environ.get("FINNHUB_BASE", "https://finnhub.io/api/v1")
+                )
+                if not self.finnhub.get("key"):
+                    self.finnhub["key"] = os.environ.get("FINNHUB_API_KEY")
+        except Exception:
+            pass
 
         # Yahoo (backup)
         yh = api_cfg.get("yahoo", {"per_second": 5, "per_minute": 20, "reserve": 2})

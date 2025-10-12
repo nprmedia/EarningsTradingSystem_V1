@@ -1,0 +1,41 @@
+# Initial sector-specific weights for 12 factors (US, short-term earnings trading)
+# Sectors covered initially: Technology, Energy, Financials
+Technology:
+  M_raw:     0.20   # Momentum (primary driver in Tech)
+  A_raw:     0.10   # Acceleration
+  TREND_raw: 0.15   # Smoothed trend (EMA composite)
+  V_raw:     0.10   # Volume surge (confirmations)
+  S_raw:     0.05   # Short-term sentiment proxy
+  tau_raw:   0.05   # Mean reversion (lower in momentum-rich Tech)
+  sigma_raw: 0.05   # Realized volatility (risk modulator)
+  SRM_raw:   0.15   # Sector-relative momentum (leaders > laggards)
+  PEER_raw:  0.05   # Peer correlation nuance
+  ETFF_raw:  0.05   # ETF flow sensitivity
+  VIX_raw:   0.10   # Macro risk sentiment linkage
+  CAL_raw:   0.10   # Earnings proximity
+Energy:
+  M_raw:     0.15
+  A_raw:     0.10
+  TREND_raw: 0.15
+  V_raw:     0.05
+  S_raw:     0.05
+  tau_raw:   0.10   # More useful in commodity swings
+  sigma_raw: 0.10
+  SRM_raw:   0.10
+  PEER_raw:  0.05
+  ETFF_raw:  0.05
+  VIX_raw:   0.10
+  CAL_raw:   0.05
+Financials:
+  M_raw:     0.10
+  A_raw:     0.05
+  TREND_raw: 0.10
+  V_raw:     0.05
+  S_raw:     0.05
+  tau_raw:   0.15   # Higher mean-reversion weight
+  sigma_raw: 0.10
+  SRM_raw:   0.10
+  PEER_raw:  0.05
+  ETFF_raw:  0.05
+  VIX_raw:   0.15   # Macro volatility sensitivity matters
+  CAL_raw:   0.10

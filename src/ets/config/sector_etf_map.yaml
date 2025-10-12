@@ -1,0 +1,13 @@
+# Default sector → ETF mapping (extend as you add sectors)
+Technology: XLK
+Energy: XLE
+Financials: XLF
+# Add more as needed, e.g.:
+# Health Care: XLV
+# Industrials: XLI
+# Consumer Discretionary: XLY
+# Consumer Staples: XLP
+# Materials: XLB
+# Utilities: XLU
+# Real Estate: XLRE
+# Communication Services: XLC
