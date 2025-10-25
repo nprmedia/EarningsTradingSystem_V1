@@ -1,0 +1,5 @@
+{
+  "AAPL": {"rev_qoq": 0.012, "eps_qoq": 0.021, "surprise": 0.04},
+  "MSFT": {"rev_qoq": 0.015, "eps_qoq": 0.028, "surprise": 0.05},
+  "XOM":  {"rev_qoq": -0.006, "eps_qoq": 0.010, "surprise": 0.01}
+}
