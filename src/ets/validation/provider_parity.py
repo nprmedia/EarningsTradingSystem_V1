@@ -9,7 +9,11 @@ import pandas as pd
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "out"
 MET = ROOT / "metrics"
-FIX = ROOT / "tests" / "fixtures"
+FIX = (
+    (ROOT.parent / "tests" / "fixtures")
+    if (ROOT / "tests" / "fixtures").exists()
+    else (ROOT.parent / "tests" / "fixtures")
+)
 
 
 # -------- helpers --------
