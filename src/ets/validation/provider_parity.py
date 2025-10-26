@@ -7,7 +7,7 @@ from typing import Dict, Any, List
 import pandas as pd
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUT = ROOT / "out"
+OUT = (ROOT.parent / "out") if not (ROOT / "out").exists() else (ROOT / "out")
 MET = ROOT / "metrics"
 FIX = (
     (ROOT.parent / "tests" / "fixtures")
