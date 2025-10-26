@@ -1,0 +1,15 @@
+name: ETS Env Setup
+on:
+  push:
+    branches: [ main, ets_update_2 ]
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run dev_setup.sh
+        run: bash scripts/dev_setup.sh
