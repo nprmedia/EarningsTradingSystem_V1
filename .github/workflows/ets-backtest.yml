@@ -8,8 +8,13 @@ on:
 jobs:
   backtest:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./EarningsTradingSystem_V1
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -20,12 +25,25 @@ jobs:
           pip install -e .
           pip install pandas
 
+      - name: Ensure output directories
+        run: |
+          mkdir -p metrics reports
+
       - name: Run backtest (fixtures)
         env:
           BACKTEST_SIGNALS: tests/fixtures/mock_signals.csv
           BACKTEST_HISTORY: tests/fixtures/mock_history.csv
         run: |
           python scripts/run_backtest.py
+
+      - name: Verify generated files
+        run: |
+          echo "== METRICS =="
+          ls -l metrics || true
+          echo "== REPORTS =="
+          ls -l reports || true
+          test -f metrics/backtest_perf.json
+          test -f reports/backtest_summary.csv
 
       - name: Pytest (backtest core)
         run: pytest -q --disable-warnings tests/test_backtest_core.py
