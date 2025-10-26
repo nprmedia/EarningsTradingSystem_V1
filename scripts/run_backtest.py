@@ -1,3 +1,4 @@
+import pandas as pd
 import sys
 import pathlib
 
@@ -34,6 +35,12 @@ def main():
     save_artifacts(metrics, OUT, panel)
     save_perf(MET, time.perf_counter() - t0, len(panel))
     print("[OK] Backtest complete.", metrics)
+    from src.ets.backtest.perf_metrics import compute_perf
+
+    compute_perf(pd.read_csv(OUT))
+    from src.ets.backtest.perf_metrics import compute_perf
+
+    compute_perf(pd.read_csv(OUT))
 
 
 if __name__ == "__main__":
