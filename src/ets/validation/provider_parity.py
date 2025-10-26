@@ -8,7 +8,9 @@ import pandas as pd
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = (ROOT.parent / "out") if not (ROOT / "out").exists() else (ROOT / "out")
-MET = ROOT / "metrics"
+MET = (
+    (ROOT.parent / "metrics") if not (ROOT / "metrics").exists() else (ROOT / "metrics")
+)
 FIX = (
     (ROOT.parent / "tests" / "fixtures")
     if (ROOT / "tests" / "fixtures").exists()
