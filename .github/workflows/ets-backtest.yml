@@ -10,15 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: /home/runner/work/EarningsTradingSystem_V1/EarningsTradingSystem_V1
+        working-directory: /home/runner/work/EarningsTradingSystem_V1
+
+    env:
+      PYTHONPATH: /home/runner/work/EarningsTradingSystem_V1/src
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -28,6 +32,19 @@ jobs:
 
       - name: Run backtest
         env:
-          PYTHONPATH: /home/runner/work/EarningsTradingSystem_V1/EarningsTradingSystem_V1/src
+          BACKTEST_SIGNALS: tests/fixtures/mock_signals.csv
+          BACKTEST_HISTORY: tests/fixtures/mock_history.csv
         run: |
           python scripts/run_backtest.py
+
+      - name: Run tests
+        run: pytest -q --disable-warnings tests/test_backtest_core.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ets-backtest
+          path: |
+            reports/backtest_summary.json
+            metrics/sector_accuracy.csv
+            metrics/*backtest_perf.json
