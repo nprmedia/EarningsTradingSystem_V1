@@ -13,7 +13,10 @@ jobs:
         working-directory: /home/runner/work/EarningsTradingSystem_V1/EarningsTradingSystem_V1
     defaults:
       run:
-        working-directory: ./EarningsTradingSystem_V1
+    defaults:
+      run:
+    defaults:
+      run:
 
     steps:
       - uses: actions/checkout@v4
