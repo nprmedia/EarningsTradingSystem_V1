@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
+        working-directory: /home/runner/work/EarningsTradingSystem_V1/EarningsTradingSystem_V1
+    defaults:
+      run:
         working-directory: ./EarningsTradingSystem_V1
 
     steps:
