@@ -27,5 +27,7 @@ jobs:
           pip install pandas
 
       - name: Run backtest
+        env:
+          PYTHONPATH: /home/runner/work/EarningsTradingSystem_V1/EarningsTradingSystem_V1/src
         run: |
           python scripts/run_backtest.py
