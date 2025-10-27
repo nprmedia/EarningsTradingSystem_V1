@@ -26,9 +26,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip wheel setuptools pytest
-          pip install -e .
-          pip install pandas
+          python -m pip install --upgrade pip wheel setuptools pytest pandas
 
       - name: Run backtest
         env:
