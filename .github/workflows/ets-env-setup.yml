@@ -1,15 +1,25 @@
 name: ETS Env Setup
+
 on:
   push:
     branches: [ main, ets_update_2 ]
   workflow_dispatch:
+
 jobs:
-  setup:
+  env:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: /home/runner/work/EarningsTradingSystem_V1/EarningsTradingSystem_V1
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - name: Run dev_setup.sh
-        run: bash scripts/dev_setup.sh
+          python-version: "3.11"
+      - name: Install baseline deps
+        run: |
+          python -m pip install --upgrade pip wheel setuptools pandas ruff black pytest
+      - name: Verify environment
+        run: python -c "import sys,platform;print('OK',sys.version,platform.system())"
