@@ -83,7 +83,7 @@ def main() -> int:
     os.chdir(ROOT)
     reports, metrics = ROOT / "reports", ROOT / "metrics"
     _ensure_dirs(reports, metrics)
-    sys.path.insert(0, str(ROOT / "src"))
+    sys.path.insert(0, str(ROOT))
 
     try:
         from src.ets.backtest.historical_loader import (
