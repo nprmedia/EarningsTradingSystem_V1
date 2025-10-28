@@ -40,5 +40,21 @@ def make_panel(signals: pd.DataFrame, history: pd.DataFrame) -> pd.DataFrame:
         right_on=["ticker", "date_for_next"],
         how="left",
     )
+    if "close_next" not in panel.columns and "close" in panel.columns:
+        panel = panel.sort_values(["ticker", "date"])
+        panel["close_next"] = panel.groupby("ticker")["close"].shift(-1)
+
+    if "close_next" not in panel.columns and "close" in panel.columns:
+        panel = panel.sort_values(["ticker", "date"])
+        panel["close_next"] = panel.groupby("ticker")["close"].shift(-1)
+
+    if "close_next" not in panel.columns and "close" in panel.columns:
+        panel = panel.sort_values(["ticker", "date"])
+        panel["close_next"] = panel.groupby("ticker")["close"].shift(-1)
+
+    if "close_next" not in panel.columns and "close" in panel.columns:
+        panel = panel.sort_values(["ticker", "date"])
+        panel["close_next"] = panel.groupby("ticker")["close"].shift(-1)
+
     panel["ret_next"] = (panel["close_next"] - panel["close"]) / panel["close"]
     return panel.drop(columns=["date_for_next"])
