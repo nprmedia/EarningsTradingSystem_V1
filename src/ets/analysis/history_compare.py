@@ -4,7 +4,7 @@ import pathlib
 from typing import Dict, Any
 import pandas as pd
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+ROOT = pathlib.Path(__file__).resolve().parents[3]
 OUT = ROOT / "out"
 
 

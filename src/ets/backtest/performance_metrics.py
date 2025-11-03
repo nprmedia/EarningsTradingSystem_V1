@@ -120,7 +120,7 @@ def save_artifacts(
     print(f"[OK] Reports saved: {csv_path.name}, {json_path.name}")
 
 
-def save_perf(metrics_dir: Path, elapsed_s: float, n_rows: int) -> None:
+def save_perf(metrics_dir: Path, elapsed_s: float, n_rows: int) -> tuple[Dict[str, Any], Path]:
     """
     Save machine-readable performance timing for CI validation.
     """
@@ -130,3 +130,4 @@ def save_perf(metrics_dir: Path, elapsed_s: float, n_rows: int) -> None:
     with open(perf_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     print(f"[OK] Performance metrics saved: {perf_path.name}")
+    return data, perf_path

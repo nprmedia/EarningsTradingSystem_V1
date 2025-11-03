@@ -27,3 +27,6 @@ ets-outcomes = "ets.scripts.fetch_outcomes:main"
 package-dir = {"" = "src"}
 packages = ["ets","ets.core","ets.data","ets.data.providers","ets.outputs","ets.config","ets.scripts"]
 include-package-data = true
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

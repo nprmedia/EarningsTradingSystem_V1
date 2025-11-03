@@ -1,9 +1,22 @@
 import os
-import requests
-from .rate_limiter import RateLimiter
-from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv("/workspaces/EarningsTradingSystem_V1/.env", override=True)
+import requests
+
+from ets.core.env import load_env
+
+from .rate_limiter import RateLimiter
+
+
+def _load_project_env() -> None:
+    """Best-effort .env loading without hard dependency on python-dotenv."""
+
+    project_root = Path(__file__).resolve().parents[3]
+    env_path = project_root / ".env"
+    load_env(str(env_path))
+
+
+_load_project_env()
 
 
 class ProviderRegistry:

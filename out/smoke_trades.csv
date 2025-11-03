@@ -1,0 +1,4 @@
+ticker,sector,price,score,rank,recommendation
+MSFT,Technology,305.5,0.79,1,BUY
+AAPL,Technology,150.0,0.82,2,BUY
+XOM,Energy,108.2,0.41,3,BUY
