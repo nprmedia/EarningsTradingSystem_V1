@@ -2,9 +2,9 @@ name: ETS • Phase 1 • Env Setup
 
 on:
   push:
-    branches: [ main, ets_update_2 ]
+    branches: [ main, ets_update_2*, ets_update_3 ]
   pull_request:
-    branches: [ main, ets_update_2 ]
+    branches: [ main, ets_update_2*, ets_update_3 ]
   workflow_dispatch:
 
 jobs:
