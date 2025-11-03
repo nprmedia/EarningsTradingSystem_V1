@@ -36,8 +36,8 @@ jobs:
 
       - name: Pre-commit (lint/format checks)
         run: |
+          pip install pre-commit
           pre-commit install --install-hooks
-          # CI-safe: checks only, no auto-fixes (deterministic)
           pre-commit run --all-files --show-diff-on-failure
 
       - name: Verify import path / package wiring
