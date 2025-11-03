@@ -11,3 +11,4 @@ cache/
 *.pre-*
 *.fix-*
 *.reindent-*
+!.pre-commit-config.yaml

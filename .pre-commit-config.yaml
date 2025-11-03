@@ -1,0 +1,47 @@
+# -------------------------------------------------------------------------
+# NPR Media — Earnings Trading System (ETS)
+# Deterministic pre-commit configuration for CI + local development
+# -------------------------------------------------------------------------
+repos:
+  # ---------------------------------------------------------------
+  # Ruff — Linter & import sorter (check only, explicit dirs)
+  # ---------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        name: ruff (lint)
+        entry: ruff check
+        args: ["src", "scripts", "tests", "--output-format=github"]
+        stages: [pre-commit, manual]
+
+  # ---------------------------------------------------------------
+  # Black — Code style check
+  # ---------------------------------------------------------------
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        name: black (check)
+        args: ["--check", "--diff", "src", "scripts", "tests"]
+        stages: [pre-commit, manual]
+
+  # ---------------------------------------------------------------
+  # Repo hygiene hooks
+  # ---------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-merge-conflict
+
+      - id: check-yaml
+        exclude: '^src/ets/config/weights\.yaml$'
+
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+
+      - id: end-of-file-fixer
+
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext", "md"]
