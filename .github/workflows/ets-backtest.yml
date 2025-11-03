@@ -2,7 +2,7 @@ name: ETS • Phase 2 • Backtest
 
 on:
   push:
-    branches: [ main, ets_update_2*, ets_update_3 ]
+    branches: [ main, ets_update_2, ets_update_3 ]
     paths:
       - "src/**"
       - "scripts/**"
