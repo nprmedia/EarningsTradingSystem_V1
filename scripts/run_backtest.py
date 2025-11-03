@@ -70,12 +70,12 @@ def main() -> int:
     sys.path.insert(0, str(root / "src"))
 
     try:
-        from src.ets.backtest.historical_loader import (
+        from ets.backtest.historical_loader import (
             load_signals,
             load_history,
             make_panel,
         )
-        from src.ets.backtest.performance_metrics import (
+        from ets.backtest.performance_metrics import (
             compute_metrics,
             save_artifacts,
             save_perf,

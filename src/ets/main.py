@@ -1,4 +1,38 @@
+# ruff: noqa: E402
+# =====================================================
+# Environment bootstrap — must run before any other imports
+# =====================================================
+from ets.config.env_loader import load_env
+
+load_env(verbose=False)
+
 import os
+
+
+def _print_mode_banner():
+    offline = os.getenv("ETS_OFFLINE_MODE", "1")
+    providers = {
+        "FINNHUB_API_KEY": os.getenv("FINNHUB_API_KEY", ""),
+        "YFINANCE_OFFLINE": os.getenv("YFINANCE_OFFLINE", ""),
+    }
+
+    def mask(v: str) -> str:
+        return "" if not v or v == "MOCK_KEY" else f"{v[:2]}***{v[-2:]}"
+
+    print("=== ETS MODE ===")
+    print(f"offline={offline} (1=offline, 0=live)")
+    print(
+        {
+            k: ("MOCK" if v in ("", "MOCK_KEY") else mask(v))
+            for k, v in providers.items()
+        }
+    )
+    print("================")
+
+
+_print_mode_banner()
+
+
 import sys
 import argparse
 import logging
