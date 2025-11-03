@@ -1,0 +1,7 @@
+date,ticker,sector,score,rank,signal
+2025-01-02,AAPL,Technology,0.02,1,1
+2025-01-02,MSFT,Technology,0.03,2,1
+2025-01-02,XOM,Energy,0.01,3,-1
+2025-01-03,AAPL,Technology,0.02,1,1
+2025-01-03,MSFT,Technology,0.03,2,1
+2025-01-03,XOM,Energy,0.01,3,-1
