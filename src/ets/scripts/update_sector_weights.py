@@ -182,5 +182,5 @@ def main():  # noqa: C901
     for c in changes:
         print(
             f" - {c['sector']}.{c['factor']}: {c['old_weight']} -> {c['new_weight']} "
-            f"[{c['source']}{" "+c['reason'] if c['reason'] else ""}]"
+            f"[{c['source']}{' ' + c['reason'] if c['reason'] else ''}]"
         )
