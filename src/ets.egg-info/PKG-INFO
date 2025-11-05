@@ -1,17 +1,10 @@
 Metadata-Version: 2.4
 Name: ets
 Version: 0.1.0
-Summary: Pre-earnings screening MVP (sector-aware scoring)
-Author-email: NPR Media <dev@example.com>
-Requires-Python: >=3.10
+Summary: Earnings Trading System
+Requires-Python: >=3.11
 Description-Content-Type: text/markdown
-Requires-Dist: pandas==2.2.2
-Requires-Dist: numpy==1.26.4
-Requires-Dist: yfinance==0.2.43
-Requires-Dist: requests==2.32.3
-Requires-Dist: python-dateutil==2.9.0.post0
-Requires-Dist: pytz==2024.1
-Requires-Dist: PyYAML==6.0.2
+Requires-Dist: pyyaml>=6.0.1
 
 # ETS (Pre-earnings Screener)
 ## Install

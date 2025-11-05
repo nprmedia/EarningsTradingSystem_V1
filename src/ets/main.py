@@ -2,6 +2,8 @@
 # =====================================================
 # Environment bootstrap — must run before any other imports
 # =====================================================
+# Ensure deterministic seeding applies even if main.py is called directly
+import ets  # noqa: F401
 from ets.config.env_loader import load_env
 
 load_env(verbose=False)
@@ -129,26 +131,38 @@ def _config_paths():
 
 def parse_args():
     ap = argparse.ArgumentParser(description="ETS: Pre-earnings MVP (free-tier)")
+
     ap.add_argument(
         "--date",
         default=datetime.now().strftime("%Y-%m-%d"),
         help="Run date YYYY-MM-DD (default: today)",
     )
+
     ap.add_argument(
         "--session",
         default="amc",
         choices=["amc", "bmo"],
         help="Earnings session: amc (after market close) or bmo (before market open)",
     )
+
     ap.add_argument(
         "--tickers",
         help="Path to CSV with tickers (one per line). If omitted, tries Finnhub calendar.",
     )
+
+    ap.add_argument(
+        "--out",
+        type=str,
+        default="out",
+        help="Output directory for results (default: ./out)",
+    )
+
     ap.add_argument(
         "--dry",
         action="store_true",
         help="Run deterministic pipeline without live API calls or writes.",
     )
+
     return ap.parse_args()
 
 
@@ -273,6 +287,17 @@ def _phase2_gate(factors_df: pd.DataFrame) -> pd.DataFrame:
 def main():  # noqa: C901
     args = parse_args()
     cfg, wts = load_configs()
+
+    # --- New: output directory handling ---
+    from pathlib import Path
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["ETS_OUT_DIR"] = str(out_dir)
+
+    # Ensure cfg reflects this override so downstream paths use it
+    cfg["app"]["out_dir"] = str(out_dir)
+    # --------------------------------------
 
     dry_run = getattr(args, "dry", False)
     if dry_run:

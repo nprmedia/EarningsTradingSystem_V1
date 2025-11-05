@@ -1,3 +1,0 @@
-[console_scripts]
-ets-outcomes = ets.scripts.fetch_outcomes:main
-ets-run = ets.main:main
