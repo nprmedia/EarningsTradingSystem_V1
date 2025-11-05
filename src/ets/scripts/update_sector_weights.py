@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 import argparse
+import datetime as dt
 import json
 import os
+import shutil
 import sys
 import tempfile
-import shutil
-import datetime as dt
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 import yaml
 
@@ -16,14 +17,14 @@ HIST = Path("out/weights_history.jsonl")
 SNAP = Path("out/snapshots")
 
 
-def load_yaml(p: Path) -> Dict[str, Any]:
+def load_yaml(p: Path) -> dict[str, Any]:
     if not p.exists():
         return {}
     with p.open("r") as f:
         return yaml.safe_load(f) or {}
 
 
-def dump_yaml_atomic(p: Path, data: Dict[str, Any]) -> None:
+def dump_yaml_atomic(p: Path, data: dict[str, Any]) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile("w", delete=False, dir=str(p.parent)) as tmp:
         yaml.safe_dump(data, tmp, sort_keys=True)
@@ -40,7 +41,7 @@ def append_history(changes):
             f.write(json.dumps(rec, separators=(",", ":")) + "\n")
 
 
-def ensure_sector(d: Dict[str, Any], sector: str):
+def ensure_sector(d: dict[str, Any], sector: str):
     if sector not in d or not isinstance(d[sector], dict):
         d[sector] = {}
 
@@ -54,22 +55,22 @@ def parse_set_arg(s: str):
     try:
         w = float(val)
     except Exception:
-        raise ValueError(f"Weight must be float in --set '{s}'")
+        raise ValueError(f"Weight must be float in --set '{s}'") from None
     return sector.strip(), factor.strip(), w
 
 
-def sector_sum(weights: Dict[str, float]) -> float:
+def sector_sum(weights: dict[str, float]) -> float:
     return float(sum(float(v) for v in weights.values()))
 
 
-def normalize_sector(weights: Dict[str, float]) -> Dict[str, float]:
+def normalize_sector(weights: dict[str, float]) -> dict[str, float]:
     s = sector_sum(weights)
     if s == 0:
         return weights
     return {k: float(v) / s for k, v in weights.items()}
 
 
-def main():
+def main():  # noqa: C901
     ap = argparse.ArgumentParser(description="Update sector weights and log history.")
     ap.add_argument(
         "--from-yaml",
@@ -81,12 +82,8 @@ def main():
         default=[],
         help="Inline updates like: Technology.M_raw=0.18 (repeatable)",
     )
-    ap.add_argument(
-        "--reason", default="", help="Short free-text reason to log with history"
-    )
-    ap.add_argument(
-        "--source", default="manual", help="Origin tag (manual|tuner|backtest|other)"
-    )
+    ap.add_argument("--reason", default="", help="Short free-text reason to log with history")
+    ap.add_argument("--source", default="manual", help="Origin tag (manual|tuner|backtest|other)")
     ap.add_argument(
         "--normalize",
         action="store_true",
@@ -111,7 +108,7 @@ def main():
         shutil.copy2(CURR, SNAP / f"sector_weights_{ts}.yaml")
 
     # Build updates structure
-    updates: Dict[str, Dict[str, float]] = {}
+    updates: dict[str, dict[str, float]] = {}
     if args.from_yaml:
         upd = load_yaml(Path(args.from_yaml))
         if not isinstance(upd, dict):
@@ -171,7 +168,8 @@ def main():
         if bad:
             for sec, s in bad:
                 print(
-                    f"[ERROR] sector '{sec}' weights sum={s:.6f} (expected 1.0). Use --normalize or --allow-unequal.",
+                    f"[ERROR] sector {sec!r} weights sum={s:.6f} (expected 1.0). "
+                    "Use --normalize or --allow-unequal.",
                     file=sys.stderr,
                 )
             sys.exit(3)
@@ -180,10 +178,9 @@ def main():
     dump_yaml_atomic(CURR, current)
     append_history(changes)
 
-    print(
-        f"[OK] updated {len(changes)} weights across {len(touched_sectors)} sector(s)"
-    )
+    print(f"[OK] updated {len(changes)} weights across {len(touched_sectors)} sector(s)")
     for c in changes:
         print(
-            f" - {c['sector']}.{c['factor']}: {c['old_weight']} -> {c['new_weight']} [{c['source']}{' '+c['reason'] if c['reason'] else ''}]"
+            f" - {c["sector"]}.{c["factor"]}: {c["old_weight"]} -> {c["new_weight"]} "
+            f"[{c["source"]}{" "+c["reason"] if c["reason"] else ""}]"
         )

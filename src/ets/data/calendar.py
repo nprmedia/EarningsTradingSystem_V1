@@ -1,5 +1,6 @@
-import os
 import csv
+import os
+
 import requests
 
 
@@ -25,7 +26,7 @@ def from_finnhub(date_str: str) -> list:
 def from_csv(path: str) -> list:
     out = []
     try:
-        with open(path, "r", newline="") as f:
+        with open(path, newline="") as f:
             for row in csv.reader(f):
                 if not row:
                     continue

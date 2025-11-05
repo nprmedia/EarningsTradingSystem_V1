@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import List, Dict, Optional
+
 import time
 
-from ets.data.providers.provider_registry import ProviderRegistry
-from ets.data.providers.finnhub_client import earnings_calendar
 from ets.core.run_context import get_run_date
+from ets.data.providers.finnhub_client import earnings_calendar
+from ets.data.providers.provider_registry import ProviderRegistry
 
 FALLBACK_PEERS: list[str] | None = None
 
@@ -14,7 +14,7 @@ def set_fallback_peers(symbols: list[str] | None):
     FALLBACK_PEERS = [s.upper() for s in symbols] if symbols else None
 
 
-_REG: Optional[ProviderRegistry] = None
+_REG: ProviderRegistry | None = None
 _CACHE: dict[str, dict] = {}  # date -> {"ts": time.time(), "events": [..]}
 
 
@@ -23,7 +23,7 @@ def set_registry(reg: ProviderRegistry):
     _REG = reg
 
 
-def _fetch_day(date_str: str) -> List[Dict]:
+def _fetch_day(date_str: str) -> list[dict]:
     """
     Fetch earnings for a single YYYY-MM-DD day from Finnhub, cached for 10 minutes.
     """
@@ -38,7 +38,7 @@ def _fetch_day(date_str: str) -> List[Dict]:
 
     # Finnhub calendar supports a date range; we request just that day
     obj = earnings_calendar(_REG.finnhub, date_str, date_str)
-    out: List[Dict] = []
+    out: list[dict] = []
     if obj and "earningsCalendar" in obj and isinstance(obj["earningsCalendar"], list):
         for e in obj["earningsCalendar"]:
             # normalize minimal fields we need
@@ -50,25 +50,21 @@ def _fetch_day(date_str: str) -> List[Dict]:
                 {
                     "symbol": sym,
                     "date": date_str,
-                    "session": (
-                        "amc" if "amc" in when else "bmo" if "bmo" in when else ""
-                    ),
+                    "session": ("amc" if "amc" in when else "bmo" if "bmo" in when else ""),
                 }
             )
     # Fallback: if API returned no events for the run date, synthesize from provided peers
     if not out and FALLBACK_PEERS is not None:
-        out = [
-            {"symbol": s, "date": date_str, "session": "amc"} for s in FALLBACK_PEERS
-        ]
+        out = [{"symbol": s, "date": date_str, "session": "amc"} for s in FALLBACK_PEERS]
     _CACHE[date_str] = {"ts": now, "events": out}
     return out
 
 
-def day_events(date_str: str) -> List[Dict]:
+def day_events(date_str: str) -> list[dict]:
     return list(_fetch_day(date_str))
 
 
-def same_day_peers(symbol: str, date_str: str, max_peers: int = 10) -> List[str]:
+def same_day_peers(symbol: str, date_str: str, max_peers: int = 10) -> list[str]:
     s = (symbol or "").upper()
     ev = [e.get("symbol", "") for e in _fetch_day(date_str)]
     peers = [x for x in ev if x and x != s]

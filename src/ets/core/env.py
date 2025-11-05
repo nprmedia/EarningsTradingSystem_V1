@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 
 def load_env(dotenv_path: str = ".env") -> None:
@@ -11,7 +10,7 @@ def load_env(dotenv_path: str = ".env") -> None:
         pass  # ok if dotenv not installed
 
 
-def require_env(key: str, message: Optional[str] = None) -> str:
+def require_env(key: str, message: str | None = None) -> str:
     val = os.getenv(key, "").strip()
     if not val:
         raise RuntimeError(message or f"Missing required environment variable: {key}")

@@ -1,6 +1,8 @@
 from __future__ import annotations
-import pandas as pd
+
 from pathlib import Path
+
+import pandas as pd
 
 FACTORS = [
     "M_raw",
@@ -20,8 +22,8 @@ FACTORS = [
 
 def main():
     out = Path("out")
-    # EXPECTED: a single combined factors file produced by your upstream compute
-    # For now, if it doesn't exist, create a minimal placeholder using symbols seen in quote_results.csv
+    # If missing, create a minimal placeholder
+    # using symbols from quote_results.csv
     tgt = out / "factors_latest.csv"
     if tgt.exists():
         print(f"[INFO] factors_latest.csv already exists: {tgt}")
@@ -32,14 +34,13 @@ def main():
             "Seed file not found: out/quote_results.csv. Run quotes or provide your factors CSV."
         )
     df = pd.read_csv(seed)
-    base = pd.DataFrame(
-        {"symbol": df["symbol"].astype(str).str.upper().dropna().unique()}
-    )
+    base = pd.DataFrame({"symbol": df["symbol"].astype(str).str.upper().dropna().unique()})
     for f in FACTORS:
         base[f] = 0.0
     base.to_csv(tgt, index=False)
     print(
-        f"[INFO] wrote placeholder {tgt} with {len(base)} symbols; fill real factor columns upstream."
+        f"[INFO] wrote placeholder {tgt} with {len(base)} symbols;"
+        " fill real factor columns upstream."
     )
 
 

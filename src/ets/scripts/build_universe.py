@@ -1,11 +1,12 @@
-import os
 import csv
-from datetime import datetime, timedelta, UTC
+import os
+from datetime import UTC, datetime, timedelta
+
 from ets.core.env import load_env
-from ets.core.utils import load_yaml, ensure_dirs
-from ets.scripts.prefetch_daily import main as prefetch_main
+from ets.core.utils import ensure_dirs, load_yaml
 from ets.data.providers.provider_registry import ProviderRegistry
-from ets.data.providers.quotes_agg import set_registry, fetch_quote_basic
+from ets.data.providers.quotes_agg import fetch_quote_basic, set_registry
+from ets.scripts.prefetch_daily import main as prefetch_main
 
 
 def _ds(d):
@@ -17,7 +18,7 @@ def _read_calendar(path):
     if os.path.exists(path):
         import csv as _csv
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for r in _csv.DictReader(f):
                 out.append(
                     {
@@ -32,7 +33,7 @@ def _read_calendar(path):
 def _read_sectors(path):
     m = {}
     if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for r in csv.reader(f):
                 if len(r) >= 2:
                     m[r[0].upper()] = r[1]
@@ -41,9 +42,7 @@ def _read_sectors(path):
 
 def build_universe():
     load_env()
-    cfg = load_yaml(
-        os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml")
-    )
+    cfg = load_yaml(os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"))
     u = cfg.get("universe", {})
     horizon = int(u.get("horizon_days", 2))
     session = str(u.get("session", "amc")).lower().strip()

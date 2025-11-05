@@ -1,11 +1,15 @@
 import time
+
 import requests
 
 _SESSION = requests.Session()
 _SESSION.headers.update(
     {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json,text/plain,*/*",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
         "Accept-Language": "en-US,en;q=0.9",
         "Connection": "keep-alive",
     }
@@ -17,7 +21,7 @@ _BACKOFF = 0.8
 
 
 def fetch_daily_ohlc(symbol: str):
-    """Yahoo 'chart' endpoint (no crumb needed). Returns dict with open/high/low/last/volume or None."""
+    """Yahoo chart endpoint (no crumb). Returns OHLCV dict or None."""
     params = {
         "range": "5d",
         "interval": "1d",

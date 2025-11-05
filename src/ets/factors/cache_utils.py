@@ -1,8 +1,9 @@
 from __future__ import annotations
-from pathlib import Path
-from typing import List, Dict
-import pandas as pd
+
 import sys
+from pathlib import Path
+
+import pandas as pd
 
 # Free data
 try:
@@ -16,10 +17,10 @@ DAILY_DIR = OUT_DIR / "cache" / "daily"
 FACTORS_CSV = OUT_DIR / "factors_latest.csv"
 
 
-def read_symbols(symbols_arg: str | None) -> List[str]:
+def read_symbols(symbols_arg: str | None) -> list[str]:
     """Read symbols from a CSV (first col) or fallbacks (out/quote_results.csv, tickers.csv)."""
 
-    def _from_file(p: Path) -> List[str]:
+    def _from_file(p: Path) -> list[str]:
         raw = p.read_text().strip().splitlines()
         syms = []
         for ln in raw:
@@ -64,9 +65,7 @@ def save_daily_cache(symbol: str, df: pd.DataFrame) -> None:
     df.to_parquet(DAILY_DIR / f"{symbol}.parquet")
 
 
-def fetch_daily_batch(
-    symbols: List[str], lookback_days: int = 35
-) -> dict[str, pd.DataFrame]:
+def fetch_daily_batch(symbols: list[str], lookback_days: int = 35) -> dict[str, pd.DataFrame]:
     """Batch-download daily bars from Yahoo; returns dict[symbol] -> df(OHLCV)."""
     if not symbols:
         return {}
@@ -95,14 +94,9 @@ def fetch_daily_batch(
     return out
 
 
-def update_factors_csv(
-    symbols: List[str], column: str, values: Dict[str, float]
-) -> None:
+def update_factors_csv(symbols: list[str], column: str, values: dict[str, float]) -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    if FACTORS_CSV.exists():
-        df = pd.read_csv(FACTORS_CSV)
-    else:
-        df = pd.DataFrame({"symbol": symbols})
+    df = pd.read_csv(FACTORS_CSV) if FACTORS_CSV.exists() else pd.DataFrame({"symbol": symbols})
     df["symbol"] = df["symbol"].astype(str).str.upper()
     upd = pd.DataFrame({"symbol": list(values.keys()), column: list(values.values())})
     df = df.merge(upd, on="symbol", how="left")

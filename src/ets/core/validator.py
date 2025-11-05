@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import pandas as pd
 
 REQUIRED_RAWS = [
@@ -29,7 +30,5 @@ def validate_factors(df: pd.DataFrame, min_rows: int = 1, min_coverage: float = 
     if len(df) < min_rows:
         raise RuntimeError(f"Too few rows: {len(df)} < {min_rows}")
     if coverage < min_coverage:
-        raise RuntimeError(
-            f"Coverage {coverage:.2%} below threshold {min_coverage:.2%}"
-        )
+        raise RuntimeError(f"Coverage {coverage:.2%} below threshold {min_coverage:.2%}")
     return coverage

@@ -1,10 +1,11 @@
 import os
+
 import yaml
 from dateutil import tz
 
 
 def load_yaml(path: str) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

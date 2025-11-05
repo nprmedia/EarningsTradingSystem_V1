@@ -1,17 +1,19 @@
 from __future__ import annotations
-from pathlib import Path
-from typing import Dict, Any, List
+
+import datetime as dt
+import hashlib
 import json
 import sys
 import time
-import hashlib
-import datetime as dt
-import pandas as pd
+from pathlib import Path
+from typing import Any
+
 import numpy as np
+import pandas as pd
 import yaml
 
-from ets.data.providers.provider_registry import ProviderRegistry
 from ets.data.providers.fetchers import fetch_factor
+from ets.data.providers.provider_registry import ProviderRegistry
 
 FACTORS = [
     "M_raw",
@@ -42,9 +44,7 @@ def winsor(x: pd.Series, p: float = 0.01) -> pd.Series:
     return x.clip(lower=lo, upper=hi)
 
 
-def normalize_within_sector(
-    df: pd.DataFrame, sector_col: str, factors: List[str]
-) -> pd.DataFrame:
+def normalize_within_sector(df: pd.DataFrame, sector_col: str, factors: list[str]) -> pd.DataFrame:
     out = df.copy()
     for f in factors:
         out[f] = out.groupby(sector_col)[f].transform(winsor)
@@ -53,7 +53,7 @@ def normalize_within_sector(
     return out
 
 
-def load_cfg() -> Dict[str, Any]:
+def load_cfg() -> dict[str, Any]:
     here = Path(__file__).resolve()
     for rel in [
         "src/ets/config/config.yaml",
@@ -68,22 +68,15 @@ def load_cfg() -> Dict[str, Any]:
     raise FileNotFoundError("config.yaml not found")
 
 
-def ensure_sector_map(
-    reg: ProviderRegistry, symbols: List[str], cache: Path
-) -> pd.DataFrame:
-    if cache.exists():
-        dm = pd.read_csv(cache)
-    else:
-        dm = pd.DataFrame(columns=["symbol", "sector"])
+def ensure_sector_map(reg: ProviderRegistry, symbols: list[str], cache: Path) -> pd.DataFrame:
+    dm = pd.read_csv(cache) if cache.exists() else pd.DataFrame(columns=["symbol", "sector"])
     dm["symbol"] = dm["symbol"].astype(str).str.upper()
     have = set(dm["symbol"].tolist())
     need = [s for s in symbols if s not in have]
     rows = []
     for s in need:
         d = fetch_factor(reg, "profile2", s) or {}
-        sector = (
-            d.get("finnhubIndustry") or d.get("sector") or ""
-        ).strip() or "Unknown"
+        sector = (d.get("finnhubIndustry") or d.get("sector") or "").strip() or "Unknown"
         rows.append({"symbol": s, "sector": sector})
         time.sleep(0.05)  # polite on free tier
     if rows:
@@ -130,9 +123,7 @@ def main():
 
     # Sector map via profile2 (cached)
     reg = ProviderRegistry(cfg)
-    sec_map = ensure_sector_map(
-        reg, df["symbol"].tolist(), out_dir / "sector_profile.csv"
-    )
+    sec_map = ensure_sector_map(reg, df["symbol"].tolist(), out_dir / "sector_profile.csv")
     df = df.merge(sec_map, on="symbol", how="left")
     df["sector"] = df["sector"].fillna("Unknown")
 
@@ -152,9 +143,7 @@ def main():
         return float(sum(wmap.get(f, 0.0) * r.get(f, 0.0) for f in FACTORS))
 
     df["Score"] = df.apply(row_score, axis=1)
-    df["sector_rank"] = df.groupby("sector")["Score"].rank(
-        ascending=False, method="first"
-    )
+    df["sector_rank"] = df.groupby("sector")["Score"].rank(ascending=False, method="first")
 
     # Add version stamp columns (duplicated per row for CSV lineage)
     df["weights_hash"] = weights_hash
@@ -170,9 +159,7 @@ def main():
         "weights_date",
     ] + FACTORS
     out_csv = out_dir / "scores_latest.csv"
-    df[cols].sort_values(["sector", "Score"], ascending=[True, False]).to_csv(
-        out_csv, index=False
-    )
+    df[cols].sort_values(["sector", "Score"], ascending=[True, False]).to_csv(out_csv, index=False)
 
     # Persist JSONL with _meta block
     out_jsonl = out_dir / "scores_latest.jsonl"
@@ -182,9 +169,7 @@ def main():
             "weights_date": weights_date,
             "weights_file": str(wfile),
         }
-        for _, r in df[
-            ["symbol", "sector", "Score", "sector_rank"] + FACTORS
-        ].iterrows():
+        for _, r in df[["symbol", "sector", "Score", "sector_rank"] + FACTORS].iterrows():
             rec = r.to_dict()
             # replace NaN with None
             for k, v in list(rec.items()):
@@ -193,9 +178,7 @@ def main():
             rec["_meta"] = meta
             f.write(json.dumps(rec, separators=(",", ":")) + "\n")
 
-    print(
-        f"[DONE] wrote {out_csv} and {out_jsonl} | weights_hash={weights_hash} | n={len(df)}"
-    )
+    print(f"[DONE] wrote {out_csv} and {out_jsonl} | weights_hash={weights_hash} | n={len(df)}")
 
 
 if __name__ == "__main__":

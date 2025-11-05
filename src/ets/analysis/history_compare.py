@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import json
 import pathlib
-from typing import Dict, Any
+from typing import Any
+
 import pandas as pd
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -11,13 +13,11 @@ OUT = ROOT / "out"
 def _latest_two() -> tuple[pathlib.Path, pathlib.Path]:
     files = sorted(OUT.glob("*.csv"))
     if len(files) < 2:
-        raise FileNotFoundError(
-            "Need at least two out/*.csv files for history comparison."
-        )
+        raise FileNotFoundError("Need at least two out/*.csv files for history comparison.")
     return files[-2], files[-1]
 
 
-def compare_latest_two() -> Dict[str, Any]:
+def compare_latest_two() -> dict[str, Any]:
     prev_p, cur_p = _latest_two()
     prev = pd.read_csv(prev_p)
     cur = pd.read_csv(cur_p)

@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import json
-import pathlib
 import os
-from typing import Dict, Any
+import pathlib
+from typing import Any
+
 import pandas as pd
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -13,9 +15,7 @@ def load_latest_output(session: str | None = None) -> pathlib.Path:
     OUT.mkdir(parents=True, exist_ok=True)
     files = sorted(OUT.glob("*.csv"))
     if not files:
-        raise FileNotFoundError(
-            "No out/*.csv files found. Run scripts/cli_mock_run.py first."
-        )
+        raise FileNotFoundError("No out/*.csv files found. Run scripts/cli_mock_run.py first.")
     if session:
         # prioritize files that match session
         session_files = sorted([p for p in files if p.stem.endswith(f"_{session}")])
@@ -43,7 +43,7 @@ def sector_summary(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def save_json_csv(obj: pd.DataFrame | Dict[str, Any], base: pathlib.Path):
+def save_json_csv(obj: pd.DataFrame | dict[str, Any], base: pathlib.Path):
     base.parent.mkdir(parents=True, exist_ok=True)
     if isinstance(obj, pd.DataFrame):
         obj.to_json(str(base.with_suffix(".json")), orient="records", indent=2)
@@ -52,7 +52,7 @@ def save_json_csv(obj: pd.DataFrame | Dict[str, Any], base: pathlib.Path):
         (base.with_suffix(".json")).write_text(json.dumps(obj, indent=2))
 
 
-def run_summary(session: str | None = None) -> Dict[str, Any]:
+def run_summary(session: str | None = None) -> dict[str, Any]:
     latest = load_latest_output(session)
     df = pd.read_csv(latest)
     # minimal schema check

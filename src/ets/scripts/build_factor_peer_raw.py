@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 import argparse
-from typing import List, Dict
+
 import numpy as np
 import pandas as pd
 
 from ets.factors.cache_utils import (
-    read_symbols,
-    load_daily_cache,
-    save_daily_cache,
     fetch_daily_batch,
+    load_daily_cache,
+    read_symbols,
+    save_daily_cache,
     update_factors_csv,
 )
 from ets.factors.sector_utils import load_sector_profile
@@ -19,7 +20,7 @@ def log_rets(close: pd.Series) -> pd.Series:
     return np.log(c / c.shift(1))
 
 
-def main():
+def main():  # noqa: C901
     ap = argparse.ArgumentParser(
         description="Build PEER_raw (corr with sector peer median returns over 20d)"
     )
@@ -34,7 +35,7 @@ def main():
     )
     args = ap.parse_args()
 
-    symbols: List[str] = read_symbols(args.symbols)
+    symbols: list[str] = read_symbols(args.symbols)
     prof = load_sector_profile()
     if prof.empty:
         # no sector info -> zeros
@@ -43,10 +44,10 @@ def main():
         return
 
     prof = prof[prof["symbol"].isin(symbols)]
-    sym_to_sector = dict(zip(prof["symbol"], prof["sector"]))
+    sym_to_sector = dict(zip(prof["symbol"], prof["sector"], strict=False))
 
     # Build sector->peer list from entire cached profile (not only today's symbols)
-    sector_peers: Dict[str, List[str]] = {}
+    sector_peers: dict[str, list[str]] = {}
     for sec, sdf in prof.groupby("sector"):
         sector_peers[sec] = sorted(sdf["symbol"].unique().tolist())
 
@@ -67,7 +68,7 @@ def main():
                 save_daily_cache(s, df)
                 cached[s] = df
 
-    vals: Dict[str, float] = {}
+    vals: dict[str, float] = {}
     for s in symbols:
         sec = sym_to_sector.get(s, "Unknown")
         peers = [p for p in sector_peers.get(sec, []) if p != s][: args.max_peers]

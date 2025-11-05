@@ -1,12 +1,12 @@
-from typing import Optional, List, Dict
 import time
-from ets.data.providers.yahoo_direct_client import fetch_daily_ohlc as _yd
-from ets.data.providers.yfinance_client import fetch_quote_basic as _yf
-from ets.data.providers.stooq_client import fetch_daily_ohlc as _stq
+
 from ets.data.providers.finnhub_client import quote as fh_quote
 from ets.data.providers.provider_registry import ProviderRegistry
+from ets.data.providers.stooq_client import fetch_daily_ohlc as _stq
+from ets.data.providers.yahoo_direct_client import fetch_daily_ohlc as _yd
+from ets.data.providers.yfinance_client import fetch_quote_basic as _yf
 
-_REG: Optional[ProviderRegistry] = None
+_REG: ProviderRegistry | None = None
 
 
 def set_registry(reg: ProviderRegistry):
@@ -15,7 +15,7 @@ def set_registry(reg: ProviderRegistry):
 
 
 _MEMO: dict[str, dict] = {}
-_PULL_LOG: List[Dict] = []
+_PULL_LOG: list[dict] = []
 
 
 def _log(symbol: str, provider: str, ok: bool, ms: float, note: str = ""):
@@ -30,7 +30,7 @@ def _log(symbol: str, provider: str, ok: bool, ms: float, note: str = ""):
     )
 
 
-def get_pull_log() -> List[Dict]:
+def get_pull_log() -> list[dict]:
     return list(_PULL_LOG)
 
 
@@ -50,7 +50,7 @@ def _valid_bar(q: dict) -> bool:
         return False
 
 
-def _from_finnhub(sym: str) -> Optional[dict]:
+def _from_finnhub(sym: str) -> dict | None:
     if _REG is None:
         return None
     t0 = time.time()
@@ -70,7 +70,7 @@ def _from_finnhub(sym: str) -> Optional[dict]:
     return out if ok else None
 
 
-def fetch_quote_basic(symbol: str) -> Optional[dict]:
+def fetch_quote_basic(symbol: str) -> dict | None:
     s = symbol.upper().strip()
     if s in _MEMO:
         return _MEMO[s]

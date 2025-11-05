@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
 # Auto-refactored for Ruff/Black compliance
-import sys
 import os
 import pathlib
+import sys
 import time
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 
-def main():
+def main():  # noqa: C901
     ROOT = Path(__file__).resolve().parents[1]
     os.chdir(ROOT)
     (ROOT / "metrics").mkdir(exist_ok=True)
     (ROOT / "reports").mkdir(exist_ok=True)
-    import sys
-    import json
     import datetime
+    import json
     import logging
-    from typing import Dict, Any, List
+    import sys
+    from typing import Any
 
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
@@ -30,10 +31,10 @@ def main():
     LOGS = ROOT / "logs"
     FIX = ROOT / "tests" / "fixtures"
 
-    def read_quotes() -> Dict[str, Any]:
+    def read_quotes() -> dict[str, Any]:
         return json.loads((FIX / "mock_quotes.json").read_text())
 
-    def build_df(symbols: List[str]) -> pd.DataFrame:
+    def build_df(symbols: list[str]) -> pd.DataFrame:
         q = read_quotes()
         # minimal deterministic norms (tweakable); 12 normalized columns present
         base = {
@@ -50,9 +51,7 @@ def main():
             "VIX_norm": 0.50,
             "TREND_norm": 0.56,
         }
-        tech_boost = {
-            k: (v + 0.06 if k.endswith("_norm") else v) for k, v in base.items()
-        }
+        tech_boost = {k: (v + 0.06 if k.endswith("_norm") else v) for k, v in base.items()}
         rows = []
         for s in symbols:
             last = float(q[s]["last"])
@@ -149,9 +148,7 @@ def main():
             .reset_index(drop=True)
         )
         out["rank"] = out.index + 1
-        out["recommendation"] = out["score"].apply(
-            lambda s: "BUY" if float(s) > 0 else "PASS"
-        )
+        out["recommendation"] = out["score"].apply(lambda s: "BUY" if float(s) > 0 else "PASS")
         out = out[
             [
                 "ticker",

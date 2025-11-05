@@ -1,7 +1,8 @@
+import csv
 import io
 import time
+
 import requests
-import csv
 
 _SESSION = requests.Session()
 _SESSION.headers.update(
@@ -19,11 +20,10 @@ def _try_stooq(symbol: str):
     # Stooq tends to use .us suffix for US stocks
     candidates = []
     s = symbol.lower()
-    if "." in s:
-        # try raw first (e.g., brk-b might not exist anyway)
-        candidates = [s, s.replace(".", "-") + ".us"]
-    else:
-        candidates = [f"{s}.us", s]
+    candidates = [s, s.replace(".", "-") + ".us"] if "." in s else [f"{s}.us", s]
+    s = symbol.lower()
+    candidates = [s, s.replace(".", "-") + ".us"] if "." in s else [f"{s}.us", s]
+    candidates = [s, s.replace(".", "-") + ".us"] if "." in s else [f"{s}.us", s]
     for cand in candidates:
         for i in range(_RETRIES):
             try:

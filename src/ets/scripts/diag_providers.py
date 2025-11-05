@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import json
-import yaml
 from pathlib import Path
+
+import yaml
 
 
 def load_cfg():
@@ -17,13 +19,7 @@ def load_cfg():
     if not p.exists():
         p = Path(__file__).resolve().parents[3] / "ets" / "config" / "config.yaml"
     if not p.exists():
-        p = (
-            Path(__file__).resolve().parents[3]
-            / "src"
-            / "ets"
-            / "config"
-            / "config.yaml"
-        )
+        p = Path(__file__).resolve().parents[3] / "src" / "ets" / "config" / "config.yaml"
     if not p.exists():
         raise FileNotFoundError("config.yaml not found")
     return yaml.safe_load(p.read_text())

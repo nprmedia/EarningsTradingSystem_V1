@@ -1,185 +1,165 @@
+"""
+Build M_raw momentum factor across tickers.
+
+Features:
+- Pulls OHLCV data (Yahoo → Stooq fallback)
+- Computes log-return momentum (M_raw)
+- Optional mock data (--mock) for offline runs
+- Optional debug mode (--debug) for verbose progress
+"""
+
 from __future__ import annotations
-import argparse
+
+import os
 import sys
-from pathlib import Path
-from typing import List
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../.."))
+
+import logging
+import math
+
 import numpy as np
 import pandas as pd
 
-# Free data
-try:
-    import yfinance as yf
-except Exception:
-    print("[FATAL] yfinance is required (pip install yfinance)", file=sys.stderr)
-    raise
+from ets.data.providers.stooq_client import fetch_daily_ohlc as fetch_stooq
+from ets.data.providers.yahoo_direct_client import fetch_daily_ohlc as fetch_yahoo
+from ets.utils import ensure_dir
 
-CACHE_DIR = Path("out/cache/daily")
-OUT_DIR = Path("out")
-FACTORS_CSV = OUT_DIR / "factors_latest.csv"
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
 
-def read_symbols(symbols_arg: str | None) -> List[str]:
-    if symbols_arg and Path(symbols_arg).exists():
-        # CSV list (first column) or newline list
-        raw = Path(symbols_arg).read_text().strip().splitlines()
-        syms = []
-        for ln in raw:
-            s = ln.strip().split(",")[0].upper().lstrip("$")
-            if s:
-                syms.append(s)
-        return sorted(set(syms))
-    # Default: try out/quote_results.csv, then tickers.csv
-    if (OUT_DIR / "quote_results.csv").exists():
-        df = pd.read_csv(OUT_DIR / "quote_results.csv")
-        if "symbol" in df.columns:
-            return sorted(set(df["symbol"].astype(str).str.upper()))
-    if Path("tickers.csv").exists():
-        return read_symbols("tickers.csv")
-    raise SystemExit(
-        "[FATAL] Provide --symbols CSV (or ensure out/quote_results.csv or tickers.csv exists)."
-    )
-
-
-def load_cached(symbol: str) -> pd.DataFrame | None:
-    f = CACHE_DIR / f"{symbol}.parquet"
-    if f.exists():
-        try:
-            df = pd.read_parquet(f)
-            if isinstance(df.index, pd.DatetimeIndex):
-                return df
-        except Exception:
-            pass
-    return None
-
-
-def save_cache(symbol: str, df: pd.DataFrame) -> None:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    (CACHE_DIR / f"{symbol}.parquet").unlink(missing_ok=True)
-    df.to_parquet(CACHE_DIR / f"{symbol}.parquet")
-
-
-def fetch_daily(symbols: List[str], lookback_days: int) -> dict[str, pd.DataFrame]:
+# ---------------------------------------------------------------------------
+# Data Fetching
+# ---------------------------------------------------------------------------
+def fetch_daily(
+    symbols: list[str], lookback_days: int = 30, mock: bool = False
+) -> dict[str, pd.DataFrame]:
     """
-    Batch-download daily bars; return dict[symbol]->DataFrame(Date index, columns: Open, High, Low, Close, Volume).
-    """
-    if not symbols:
-        return {}
-    df = yf.download(
-        symbols,
-        period=f"{max(lookback_days, 30)}d",
-        interval="1d",
-        progress=False,
-        threads=False,
-        group_by="ticker",
-        auto_adjust=False,
-    )
+    Fetch daily OHLCV bars for given symbols.
 
+    When mock=True, generates synthetic ascending close prices.
+    Returns dict[symbol] -> DataFrame(Date index, O,H,L,C,V).
+    """
     out: dict[str, pd.DataFrame] = {}
-    if isinstance(df.columns, pd.MultiIndex):
-        for sym in symbols:
-            sub = df.get(sym)
-            if sub is None or sub.empty:
-                continue
-            sub = sub[["Open", "High", "Low", "Close", "Volume"]].copy()
-            sub.index = pd.to_datetime(sub.index)
-            out[sym] = sub
-    else:
-        # Single symbol case
-        sub = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-        sub.index = pd.to_datetime(sub.index)
-        out[symbols[0]] = sub
+
+    for sym in symbols:
+        df = None
+        if mock:
+            # Generate fake price data for offline testing
+            idx = pd.date_range(end=pd.Timestamp.today(), periods=lookback_days)
+            prices = np.linspace(100, 110, lookback_days) + np.random.normal(0, 0.5, lookback_days)
+            df = pd.DataFrame(
+                {
+                    "date": idx,
+                    "open": prices - 0.3,
+                    "high": prices + 0.3,
+                    "low": prices - 0.6,
+                    "close": prices,
+                    "volume": np.random.randint(1e5, 5e5, lookback_days),
+                }
+            )
+        else:
+            try:
+                data = fetch_yahoo(sym)
+                if data is not None and not pd.DataFrame(data).empty:
+                    df = pd.DataFrame(data)
+            except Exception as e:
+                logger.warning(f"[Yahoo fail] {sym}: {e}")
+
+            if df is None:
+                try:
+                    data = fetch_stooq(sym)
+                    if data is not None and not pd.DataFrame(data).empty:
+                        df = pd.DataFrame(data)
+                except Exception as e:
+                    logger.warning(f"[Stooq fail] {sym}: {e}")
+
+        if df is not None:
+            df = df.tail(lookback_days)
+            out[sym] = df
+        else:
+            logger.error(f"[No data] {sym}")
 
     return out
 
 
+# ---------------------------------------------------------------------------
+# Factor Computation
+# ---------------------------------------------------------------------------
 def compute_m_raw(close: pd.Series, window: int = 10) -> float:
     """
-    M_raw = ln(C_t / C_{t-window})
-    Returns 0.0 if insufficient data.
+    Compute M_raw = ln(C_t / C_(t-window)).
+    Returns 0.0 if insufficient or invalid data.
     """
     close = close.dropna()
     if len(close) <= window:
         return 0.0
-    c_t = float(close.iloc[-1])
-    c_w = float(close.iloc[-(window + 1)])
-    if c_t <= 0 or c_w <= 0:
+    try:
+        c_t = float(close.iloc[-1])
+        c_w = float(close.iloc[-(window + 1)])
+        return math.log(c_t / c_w) if c_w > 0 else 0.0
+    except Exception as e:
+        logger.warning(f"[compute_m_raw] {e}")
         return 0.0
-    return float(np.log(c_t / c_w))
 
 
-def update_factors_csv(symbols: List[str], m_values: dict[str, float]) -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    if FACTORS_CSV.exists():
-        df = pd.read_csv(FACTORS_CSV)
-    else:
-        df = pd.DataFrame({"symbol": symbols})
-    # ensure symbol column normalized
-    df["symbol"] = df["symbol"].astype(str).str.upper()
-    # left-join M_raw
-    upd = pd.DataFrame(
-        {"symbol": list(m_values.keys()), "M_raw": list(m_values.values())}
-    )
-    df = df.merge(upd, on="symbol", how="left")
-    # if M_raw arrived as _x/_y due to existing column, resolve to new values
-    if "M_raw_x" in df.columns and "M_raw_y" in df.columns:
-        df["M_raw"] = df["M_raw_y"].fillna(df["M_raw_x"])
-        df = df.drop(columns=["M_raw_x", "M_raw_y"])
-    # ensure M_raw exists
-    if "M_raw" not in df.columns:
-        df["M_raw"] = 0.0
-    # write back
-    df.to_csv(FACTORS_CSV, index=False)
-    print(f"[OK] wrote {FACTORS_CSV} | rows={len(df)}")
+def build_factor_m_raw(
+    symbols: list[str],
+    lookback_days: int = 30,
+    window: int = 10,
+    mock: bool = False,
+    debug: bool = False,
+) -> pd.DataFrame:
+    """Compute M_raw values for all symbols and return a tidy DataFrame."""
+    data_map = fetch_daily(symbols, lookback_days, mock=mock)
+    results: dict[str, float] = {}
 
-
-def main():
-    ap = argparse.ArgumentParser(
-        description="Build M_raw (10d log momentum) into out/factors_latest.csv"
-    )
-    ap.add_argument(
-        "--symbols",
-        default="",
-        help="Path to tickers CSV (first column) or newline list",
-    )
-    ap.add_argument(
-        "--lookback", type=int, default=35, help="Days of daily bars to fetch (min 30)"
-    )
-    ap.add_argument(
-        "--window", type=int, default=10, help="Momentum window (trading days)"
-    )
-    args = ap.parse_args()
-
-    symbols = read_symbols(args.symbols)
-    # Try cache first; fill misses from Yahoo in one batch
-    cached: dict[str, pd.DataFrame] = {}
-    misses: list[str] = []
-    for s in symbols:
-        c = load_cached(s)
-        if c is not None and (len(c) >= args.window + 1):
-            cached[s] = c
-        else:
-            misses.append(s)
-
-    fetched: dict[str, pd.DataFrame] = {}
-    if misses:
-        print(f"[INFO] fetching daily bars for {len(misses)} symbols via Yahoo...")
-        fetched = fetch_daily(misses, args.lookback)
-        # Save to cache
-        for s, df in fetched.items():
-            if df is not None and not df.empty:
-                save_cache(s, df)
-
-    m_vals: dict[str, float] = {}
-    for s in symbols:
-        df = cached.get(s) or fetched.get(s)
-        if df is None or df.empty:
-            m_vals[s] = 0.0
+    for sym, df in data_map.items():
+        if "close" not in df:
+            logger.warning(f"[Missing close] {sym}")
             continue
-        close = df["Close"].astype(float)
-        m_vals[s] = compute_m_raw(close, window=args.window)
+        results[sym] = compute_m_raw(df["close"], window)
+        if debug:
+            logger.info(f"[{sym}] M_raw={results[sym]:.5f}")
 
-    update_factors_csv(symbols, m_vals)
-    print("[DONE] M_raw complete")
+    return pd.DataFrame({"symbol": list(results.keys()), "M_raw": list(results.values())})
+
+
+# ---------------------------------------------------------------------------
+# CLI Entrypoint
+# ---------------------------------------------------------------------------
+def main() -> None:
+    """CLI interface for factor generation."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Compute M_raw momentum factor.")
+    parser.add_argument("--symbols", type=str, default="tickers.csv")
+    parser.add_argument("--lookback", type=int, default=30)
+    parser.add_argument("--window", type=int, default=10)
+    parser.add_argument("--out", type=str, default="out/factors_m_raw.csv")
+    parser.add_argument("--mock", action="store_true", help="Use synthetic data for testing.")
+    parser.add_argument("--debug", action="store_true", help="Print each computed value.")
+    args = parser.parse_args()
+
+    # Load symbol list
+    if os.path.exists(args.symbols):
+        df = pd.read_csv(args.symbols)
+        symbols = df.iloc[:, 0].astype(str).tolist()
+    else:
+        symbols = ["AAPL", "MSFT", "TSLA"]
+        logger.warning(f"[Missing tickers file] Using defaults: {symbols}")
+
+    df_factors = build_factor_m_raw(
+        symbols, args.lookback, args.window, mock=args.mock, debug=args.debug
+    )
+
+    if args.debug:
+        logger.info(f"\n{df_factors}")
+
+    ensure_dir(os.path.dirname(args.out))
+    df_factors.to_csv(args.out, index=False)
+    logger.info(f"[OK] Saved {args.out} with {len(df_factors)} rows.")
 
 
 if __name__ == "__main__":

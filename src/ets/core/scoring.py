@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import pandas as pd
 
 # expected normalized column names we’ll combine
@@ -29,9 +30,7 @@ def _get_col(df: pd.DataFrame, name: str):
     return df[name] if name in df.columns else 0.0
 
 
-def compute_scores(
-    df: pd.DataFrame, base: dict, mult: dict, caps: dict
-) -> pd.DataFrame:
+def compute_scores(df: pd.DataFrame, base: dict, mult: dict, caps: dict) -> pd.DataFrame:
     out = df.copy()
 
     # sector multipliers: per-sector dicts; fallback to _default
@@ -45,7 +44,7 @@ def compute_scores(
         bw = float(base.get(key, 0.0))
         vec = _get_col(out, col)
         # sector multiplier per row
-        sec_mult = _safe_sector_series(out).map(lambda s: w_for(s, key))
+        sec_mult = _safe_sector_series(out).map(lambda s, key=key: w_for(s, key))
         term = bw * vec * sec_mult
         total = term if total is None else total + term
 

@@ -1,8 +1,7 @@
-import os
-
 #!/usr/bin/env python3
 # Auto-finalized script
 import argparse
+import os
 
 #!/usr/bin/env python3
 # Auto-refactored for Ruff/Black compliance
@@ -49,9 +48,12 @@ def main():
         ap.add_argument("--out", required=True)
         a = ap.parse_args()
         fxdir = os.environ.get("ETS_OFFLINE_FIXTURES_DIR", "tests/fixtures")
-        prices = json.load(open(os.path.join(fxdir, "mock_prices.json")))
-        funda = json.load(open(os.path.join(fxdir, "mock_fundamentals.json")))
-        rows = list(csv.DictReader(open(a.tickers)))
+        with open(os.path.join(fxdir, "mock_prices.json")) as f:
+            prices = json.load(f)
+        with open(os.path.join(fxdir, "mock_fundamentals.json")) as f:
+            funda = json.load(f)
+        with open(a.tickers) as f:
+            rows = list(csv.DictReader(f))
         recs = _fallback_compute_scores(rows, prices, funda)
         os.makedirs(os.path.dirname(a.out), exist_ok=True)
         with open(a.out, "w", newline="") as f:

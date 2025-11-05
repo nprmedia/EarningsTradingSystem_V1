@@ -1,6 +1,8 @@
 from __future__ import annotations
+
+from collections.abc import Sequence
+
 import pandas as pd
-from typing import Sequence
 
 
 def _col(df: pd.DataFrame, names: Sequence[str], default=None):
@@ -86,9 +88,7 @@ def apply_filters_and_select(
 
     # Sector caps
     if max_per_sector and max_per_sector > 0:
-        filtered = filtered.groupby("sector", group_keys=False).head(
-            int(max_per_sector)
-        )
+        filtered = filtered.groupby("sector", group_keys=False).head(int(max_per_sector))
 
     # Global cap
     if max_names and max_names > 0:

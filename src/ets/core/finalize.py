@@ -1,6 +1,7 @@
-import pandas as pd
-from pathlib import Path
 import math
+from pathlib import Path
+
+import pandas as pd
 
 _RAWS = [
     "M_raw",
@@ -46,14 +47,13 @@ def finalize_results(scores_path: str, out_dir: str):
     score_col = _find_col(df_s, ["score", "Score"])
     if sym_col is None or score_col is None:
         print(
-            f"[WARN] finalize: missing symbol/score in {scores_path} (have cols: {list(df_s.columns)})"
+            f"[WARN] finalize: missing symbol/score in {scores_path} (cols: {list(df_s.columns)})"
+            " (have cols: {list(df_s.columns)})"
         )
         return
 
     # derive factors path and read factors for data coverage count
-    factors_path = str(Path(scores_path).as_posix()).replace(
-        "_scores.csv", "_factors.csv"
-    )
+    factors_path = str(Path(scores_path).as_posix()).replace("_scores.csv", "_factors.csv")
     df_f = None
     try:
         df_f = pd.read_csv(factors_path)
@@ -70,9 +70,7 @@ def finalize_results(scores_path: str, out_dir: str):
     final = 100 * (s - s.min()) / rng
 
     # Labels (placeholder; you’ll calibrate later)
-    labels = pd.cut(
-        final, bins=[-1, 49, 69, 100], labels=["SKIP", "HOLD", "BUY"]
-    ).astype(str)
+    labels = pd.cut(final, bins=[-1, 49, 69, 100], labels=["SKIP", "HOLD", "BUY"]).astype(str)
 
     out = pd.DataFrame(
         {

@@ -1,16 +1,16 @@
 from __future__ import annotations
-import os
+
 import json
-import time
+import os
 import pathlib
-from typing import Dict, Any, List
+import time
+from typing import Any
+
 import pandas as pd
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = (ROOT.parent / "out") if not (ROOT / "out").exists() else (ROOT / "out")
-MET = (
-    (ROOT.parent / "metrics") if not (ROOT / "metrics").exists() else (ROOT / "metrics")
-)
+MET = (ROOT.parent / "metrics") if not (ROOT / "metrics").exists() else (ROOT / "metrics")
 FIX = (
     (ROOT.parent / "tests" / "fixtures")
     if (ROOT / "tests" / "fixtures").exists()
@@ -19,7 +19,7 @@ FIX = (
 
 
 # -------- helpers --------
-def _load_mock(symbols: List[str]) -> pd.DataFrame:
+def _load_mock(symbols: list[str]) -> pd.DataFrame:
     data = json.loads((FIX / "mock_quotes.json").read_text())
     rows = []
     for s in symbols:
@@ -41,7 +41,7 @@ def _load_mock(symbols: List[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _load_yahoo(symbols: List[str]) -> pd.DataFrame:
+def _load_yahoo(symbols: list[str]) -> pd.DataFrame:
     import yfinance as yf
 
     rows = []
@@ -75,7 +75,7 @@ def _load_yahoo(symbols: List[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _load_finnhub(symbols: List[str]) -> pd.DataFrame:
+def _load_finnhub(symbols: list[str]) -> pd.DataFrame:
     import finnhub
 
     key = os.getenv("FINNHUB_API_KEY", "")
@@ -107,7 +107,7 @@ def _load_finnhub(symbols: List[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _schema(df: pd.DataFrame) -> Dict[str, str]:
+def _schema(df: pd.DataFrame) -> dict[str, str]:
     return {col: str(df[col].dtype) for col in sorted(df.columns)}
 
 
@@ -119,14 +119,11 @@ def _relative_diff(a: float, b: float) -> float:
 
 
 # -------- main validate --------
-def validate_providers(symbols: List[str], mode: str = "mock") -> Dict[str, Any]:
+def validate_providers(symbols: list[str], mode: str = "mock") -> dict[str, Any]:  # noqa: C901
     OUT.mkdir(parents=True, exist_ok=True)
     MET.mkdir(parents=True, exist_ok=True)
     providers = []
-    if mode == "mock":
-        providers = ["mock", "yahoo"]  # compare mock vs yahoo locally
-    else:
-        providers = ["finnhub", "yahoo"]
+    providers = ["mock", "yahoo"] if mode == "mock" else ["finnhub", "yahoo"]
 
     frames = {}
     latencies = {}

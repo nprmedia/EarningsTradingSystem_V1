@@ -1,17 +1,18 @@
 from __future__ import annotations
+
 import argparse
-from typing import List, Dict
+
 import numpy as np
 import pandas as pd
 
 from ets.factors.cache_utils import (
-    read_symbols,
-    load_daily_cache,
-    save_daily_cache,
     fetch_daily_batch,
+    load_daily_cache,
+    read_symbols,
+    save_daily_cache,
     update_factors_csv,
 )
-from ets.factors.sector_utils import load_sector_profile, load_sector_etf_map
+from ets.factors.sector_utils import load_sector_etf_map, load_sector_profile
 
 
 def log_rets(close: pd.Series) -> pd.Series:
@@ -19,7 +20,7 @@ def log_rets(close: pd.Series) -> pd.Series:
     return np.log(c / c.shift(1))
 
 
-def main():
+def main():  # noqa: C901
     ap = argparse.ArgumentParser(
         description="Build ETFF_raw (corr of stock returns with sector ETF dollar volume over 20d)"
     )
@@ -28,10 +29,10 @@ def main():
     ap.add_argument("--window", type=int, default=20, help="lookback window")
     args = ap.parse_args()
 
-    symbols: List[str] = read_symbols(args.symbols)
+    symbols: list[str] = read_symbols(args.symbols)
     prof = load_sector_profile()
     etf_map = load_sector_etf_map()
-    sym_to_sector = dict(zip(prof["symbol"], prof["sector"]))
+    sym_to_sector = dict(zip(prof["symbol"], prof["sector"], strict=False))
 
     # Determine ETFs needed
     etfs_needed = sorted(
@@ -67,16 +68,14 @@ def main():
         else:
             etf_miss.append(e)
     if etf_miss:
-        print(
-            f"[INFO] fetching daily bars for {len(etf_miss)} sector ETFs via Yahoo..."
-        )
+        print(f"[INFO] fetching daily bars for {len(etf_miss)} sector ETFs via Yahoo...")
         ff = fetch_daily_batch(etf_miss, args.lookback)
         for e, df in ff.items():
             if df is not None and not df.empty:
                 save_daily_cache(e, df)
                 etf_cached[e] = df
 
-    vals: Dict[str, float] = {}
+    vals: dict[str, float] = {}
     for s in symbols:
         sec = sym_to_sector.get(s, "Unknown")
         etf = etf_map.get(sec)
@@ -91,17 +90,11 @@ def main():
 
         r_s = log_rets(df_s["Close"]).tail(args.window)
         # ETF dollar volume
-        dv = (
-            (df_e["Close"].astype(float) * df_e["Volume"].astype(float))
-            .dropna()
-            .tail(args.window)
-        )
+        dv = (df_e["Close"].astype(float) * df_e["Volume"].astype(float)).dropna().tail(args.window)
         if len(r_s) != len(dv) or r_s.isna().all() or dv.isna().all():
             vals[s] = 0.0
             continue
-        corr = r_s.reset_index(drop=True).corr(
-            dv.reset_index(drop=True), method="pearson"
-        )
+        corr = r_s.reset_index(drop=True).corr(dv.reset_index(drop=True), method="pearson")
         vals[s] = float(0.0 if np.isnan(corr) else corr)
 
     update_factors_csv(symbols, "ETFF_raw", vals)

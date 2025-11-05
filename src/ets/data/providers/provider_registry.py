@@ -1,7 +1,9 @@
 import os
+
 import requests
-from .rate_limiter import RateLimiter
 from dotenv import load_dotenv
+
+from .rate_limiter import RateLimiter
 
 load_dotenv("/workspaces/EarningsTradingSystem_V1/.env", override=True)
 

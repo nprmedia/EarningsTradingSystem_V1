@@ -1,12 +1,14 @@
 from __future__ import annotations
-import os
-import math
+
+import contextlib
 import datetime as dt
-from typing import Dict, Optional
+import math
+import os
+
 import requests
 import yfinance as yf
 
-UTC = dt.timezone.utc
+UTC = dt.UTC
 
 
 def _today_ymd() -> str:
@@ -32,14 +34,12 @@ def _safe_float(x):
 def _yf_info(t: yf.Ticker) -> dict:
     # yfinance 'info' can be flaky; prefer fast_info + specific frames, then info
     info = {}
-    try:
+    with contextlib.suppress(Exception):
         info = t.get_info() if hasattr(t, "get_info") else t.info
-    except Exception:
-        pass
     return info or {}
 
 
-def _last_price(t: yf.Ticker) -> Optional[float]:
+def _last_price(t: yf.Ticker) -> float | None:
     # fast path
     try:
         fi = getattr(t, "fast_info", None)
@@ -59,14 +59,14 @@ def _last_price(t: yf.Ticker) -> Optional[float]:
     return None
 
 
-def factor_fundamentals(sym: str) -> Dict[str, Optional[float]]:
+def factor_fundamentals(sym: str) -> dict[str, float | None]:
     """
     EPSG, ROE, PEG, DE — from Yahoo free endpoints via yfinance.
     All real values; returns None for any missing -> caller will enforce completeness.
     """
     t = yf.Ticker(sym)
     info = _yf_info(t)
-    out: Dict[str, Optional[float]] = {
+    out: dict[str, float | None] = {
         "EPSG": None,
         "ROE": None,
         "PEG": None,
@@ -92,7 +92,7 @@ def factor_fundamentals(sym: str) -> Dict[str, Optional[float]]:
     return out
 
 
-def factor_short_interest(sym: str) -> Dict[str, Optional[float]]:
+def factor_short_interest(sym: str) -> dict[str, float | None]:
     """
     SI — Short interest % of float from Yahoo; real number if available.
     """
@@ -110,7 +110,7 @@ def factor_short_interest(sym: str) -> Dict[str, Optional[float]]:
     return {"SI": si}
 
 
-def factor_options_skew(sym: str) -> Dict[str, Optional[float]]:
+def factor_options_skew(sym: str) -> dict[str, float | None]:
     """
     OPT_SK — Call IV minus Put IV around ATM for nearest expiry using Yahoo options via yfinance.
     """
@@ -128,12 +128,7 @@ def factor_options_skew(sym: str) -> Dict[str, Optional[float]]:
         lo, hi = 0.9 * last, 1.1 * last
         c = calls[(calls["strike"] >= lo) & (calls["strike"] <= hi)]
         p = puts[(puts["strike"] >= lo) & (puts["strike"] <= hi)]
-        if (
-            c.empty
-            or p.empty
-            or "impliedVolatility" not in c
-            or "impliedVolatility" not in p
-        ):
+        if c.empty or p.empty or "impliedVolatility" not in c or "impliedVolatility" not in p:
             return {"OPT_SK": None}
         c_iv = _safe_float(c["impliedVolatility"].median())
         p_iv = _safe_float(p["impliedVolatility"].median())
@@ -144,7 +139,7 @@ def factor_options_skew(sym: str) -> Dict[str, Optional[float]]:
         return {"OPT_SK": None}
 
 
-def factor_insider(sym: str) -> Dict[str, Optional[float]]:
+def factor_insider(sym: str) -> dict[str, float | None]:
     """
     INSIDER — Net buy ratio from Finnhub insider transactions (free tier).
     """
@@ -210,7 +205,7 @@ _NEG = {
 }
 
 
-def factor_news_sentiment(sym: str) -> Dict[str, Optional[float]]:
+def factor_news_sentiment(sym: str) -> dict[str, float | None]:
     """
     NEWS — very lightweight lexicon score from Finnhub company-news headlines (free).
     """
@@ -219,9 +214,7 @@ def factor_news_sentiment(sym: str) -> Dict[str, Optional[float]]:
         return {"NEWS": None}
     try:
         params = {"symbol": sym, "from": _days_ago(7), "to": _today_ymd(), "token": key}
-        r = requests.get(
-            "https://finnhub.io/api/v1/company-news", params=params, timeout=10
-        )
+        r = requests.get("https://finnhub.io/api/v1/company-news", params=params, timeout=10)
         if r.status_code != 200:
             return {"NEWS": None}
         arts = r.json() or []
@@ -237,7 +230,7 @@ def factor_news_sentiment(sym: str) -> Dict[str, Optional[float]]:
         return {"NEWS": None}
 
 
-def factor_macro() -> Dict[str, Optional[float]]:
+def factor_macro() -> dict[str, float | None]:
     """
     RISK_APP — XLY/XLU relative; LIQ — proxy from spread% * volume using Yahoo.
     RISK_APP is market-wide, not per-symbol.
@@ -253,7 +246,7 @@ def factor_macro() -> Dict[str, Optional[float]]:
 
 def factor_liquidity_from_ohlcv(
     open_: float, high: float, low: float, last: float, volume: float
-) -> Dict[str, Optional[float]]:
+) -> dict[str, float | None]:
     """
     LIQ — liquidity proxy, real data: intraday range % times sqrt(volume).
     """
@@ -267,7 +260,7 @@ def factor_liquidity_from_ohlcv(
     return {"LIQ": None}
 
 
-def factor_eat_from_calendar(sym: str) -> Dict[str, Optional[float]]:
+def factor_eat_from_calendar(sym: str) -> dict[str, float | None]:
     """
     EAT — Earnings Announcement Timing (BMO/AMC proximity) via Finnhub calendar.
     Uses today's schedule; returns +1 for AMC, -1 for BMO when known, else None.
@@ -296,13 +289,13 @@ def factor_eat_from_calendar(sym: str) -> Dict[str, Optional[float]]:
         return {"EAT": None}
 
 
-def compute_extended_factors(
-    sym: str, ohlcv: Dict[str, float]
-) -> Dict[str, Optional[float]]:
+def compute_extended_factors(sym: str, ohlcv: dict[str, float]) -> dict[str, float | None]:
+    """Compute extended factors.
+
+    Returns real values (or None) for:
+    EPSG, ROE, PEG, DE, SI, OPT_SK, INSIDER, NEWS, RISK_APP, LIQ, EAT.
     """
-    Returns real values (or None) for: EPSG, ROE, PEG, DE, SI, OPT_SK, INSIDER, NEWS, RISK_APP, LIQ, EAT.
-    """
-    out: Dict[str, Optional[float]] = {}
+    out: dict[str, float | None] = {}
     out.update(factor_fundamentals(sym))
     out.update(factor_short_interest(sym))
     out.update(factor_options_skew(sym))

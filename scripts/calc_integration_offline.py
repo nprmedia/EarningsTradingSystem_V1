@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # Auto-refactored for Ruff/Black compliance
-import sys
 import os
 import pathlib
-import pandas as pd
+import sys
 from pathlib import Path
+
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -138,9 +139,7 @@ def main():
         out = out[["ticker", "sector", "price", "score", "score_base_sum"]].copy()
         out = out.sort_values("score", ascending=False).reset_index(drop=True)
         out["rank"] = out.index + 1
-        out["recommendation"] = out["score"].apply(
-            lambda s: "BUY" if float(s) > 0 else "PASS"
-        )
+        out["recommendation"] = out["score"].apply(lambda s: "BUY" if float(s) > 0 else "PASS")
         out = out[
             [
                 "ticker",
@@ -153,11 +152,7 @@ def main():
             ]
         ]
 
-        out_path = (
-            pathlib.Path(__file__).resolve().parents[1]
-            / "out"
-            / "integration_scores.csv"
-        )
+        out_path = pathlib.Path(__file__).resolve().parents[1] / "out" / "integration_scores.csv"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out.to_csv(out_path, index=False)
         print(f"[OK] wrote {out_path} with {len(out)} rows")

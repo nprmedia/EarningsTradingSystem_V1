@@ -1,6 +1,8 @@
 from __future__ import annotations
-import pandas as pd
+
 from pathlib import Path
+
+import pandas as pd
 
 
 def rebuild_signals_from_fixture(path: Path) -> pd.DataFrame:

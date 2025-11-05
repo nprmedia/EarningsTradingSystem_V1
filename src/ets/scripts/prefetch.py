@@ -1,11 +1,12 @@
 import argparse
-import os
 import csv
+import os
 from datetime import datetime, timedelta
-from ets.core.utils import load_yaml, ensure_dirs
-from ets.data.providers.provider_registry import ProviderRegistry
-from ets.data.providers.quotes_agg import set_registry, fetch_quote_basic
+
+from ets.core.utils import ensure_dirs, load_yaml
 from ets.data.providers.finnhub_client import earnings_calendar, profile2
+from ets.data.providers.provider_registry import ProviderRegistry
+from ets.data.providers.quotes_agg import fetch_quote_basic, set_registry
 
 
 def _ds(d):
@@ -17,9 +18,7 @@ def main():
     ap.add_argument("--days", type=int, default=7)
     args = ap.parse_args()
 
-    cfg = load_yaml(
-        os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml")
-    )
+    cfg = load_yaml(os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"))
     cache_dir = cfg["app"]["cache_dir"]
     ensure_dirs(cache_dir)
 
@@ -38,9 +37,7 @@ def main():
             session = "amc" if "amc" in when else ("bmo" if "bmo" in when else "")
             cal_rows.append([ds, sym, session])
     os.makedirs(cache_dir, exist_ok=True)
-    with open(
-        os.path.join(cache_dir, "calendar.csv"), "w", newline="", encoding="utf-8"
-    ) as f:
+    with open(os.path.join(cache_dir, "calendar.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["date", "symbol", "session"])
         w.writerows(cal_rows)
@@ -49,7 +46,7 @@ def main():
     sec_path = os.path.join(cache_dir, "sectors.csv")
     existing = {}
     if os.path.exists(sec_path):
-        with open(sec_path, "r", encoding="utf-8") as f:
+        with open(sec_path, encoding="utf-8") as f:
             for r in csv.reader(f):
                 if len(r) >= 2:
                     existing[r[0].upper()] = r[1]
@@ -73,7 +70,9 @@ def main():
         _ = fetch_quote_basic(etf)
 
     print(
-        f"[OK] Prefetched: calendar={len(cal_rows)} sectors_added={len(new_secs)} etf_warmup={len(cfg.get('features', {}).get('sector_etfs', []))}"
+        f"[OK] Prefetched: calendar={len(cal_rows)}, "
+        f"sectors_added={len(new_secs)}, "
+        f"etf_warmup={len(cfg.get('features', {}).get('sector_etfs', []))}"
     )
 
 

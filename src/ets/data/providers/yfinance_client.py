@@ -1,8 +1,8 @@
-import time
+import contextlib
 import io
 import sys
-import contextlib
-from typing import Optional
+import time
+
 import requests
 import yfinance as yf
 
@@ -31,7 +31,7 @@ def _suppress_prints():
         sys.stdout, sys.stderr = old_out, old_err
 
 
-def _download_1d_1d(symbol: str) -> Optional[dict]:
+def _download_1d_1d(symbol: str) -> dict | None:
     """Use yf.download, but silence prints and handle errors."""
     for i in range(_RETRIES):
         try:
@@ -61,7 +61,7 @@ def _download_1d_1d(symbol: str) -> Optional[dict]:
     return None
 
 
-def fetch_quote_basic(ticker: str) -> Optional[dict]:
+def fetch_quote_basic(ticker: str) -> dict | None:
     """
     Returns dict: last, open, high, low, volume
     Robust against Yahoo quirks (silenced + retries).

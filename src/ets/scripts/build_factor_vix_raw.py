@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 import argparse
-from typing import List, Dict
+
 import numpy as np
 import pandas as pd
 
 from ets.factors.cache_utils import (
-    read_symbols,
-    load_daily_cache,
-    save_daily_cache,
     fetch_daily_batch,
+    load_daily_cache,
+    read_symbols,
+    save_daily_cache,
     update_factors_csv,
 )
 
@@ -24,7 +25,7 @@ def series_returns(close: pd.Series) -> pd.Series:
     return r
 
 
-def main():
+def main():  # noqa: C901
     ap = argparse.ArgumentParser(
         description="Build VIX_raw (corr of symbol returns with ΔVIX over 10d)"
     )
@@ -33,7 +34,7 @@ def main():
     ap.add_argument("--window", type=int, default=10, help="lookback window")
     args = ap.parse_args()
 
-    symbols: List[str] = read_symbols(args.symbols)
+    symbols: list[str] = read_symbols(args.symbols)
     # Load symbol caches/fetch
     cached, miss = {}, []
     for s in symbols:
@@ -59,7 +60,7 @@ def main():
         if vfetch is not None and not vfetch.empty:
             save_daily_cache(vx, vfetch)
             vix_df = vfetch
-    vals: Dict[str, float] = {}
+    vals: dict[str, float] = {}
     if vix_df is None or vix_df.empty:
         # no vix → 0
         for s in symbols:

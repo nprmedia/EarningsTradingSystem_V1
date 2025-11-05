@@ -13,9 +13,9 @@ Design goals
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -26,8 +26,7 @@ def _require_cols(df: pd.DataFrame, required: Iterable[str], name: str) -> None:
     missing = [c for c in required if c not in df.columns]
     if missing:
         raise ValueError(
-            f"[{name}] missing required columns: {missing}. "
-            f"Found columns: {list(df.columns)}"
+            f"[{name}] missing required columns: {missing}. " f"Found columns: {list(df.columns)}"
         )
 
 
@@ -63,9 +62,7 @@ class PanelConfig:
     allow_duplicates: bool = False  # if False, de-dup (ticker,date) on load
 
 
-def load_signals(
-    path: str | Path, *, config: PanelConfig | None = None
-) -> pd.DataFrame:
+def load_signals(path: str | Path, *, config: PanelConfig | None = None) -> pd.DataFrame:
     """
     Load signals CSV. Expected columns (flexible):
       - required: ticker, date
@@ -81,9 +78,7 @@ def load_signals(
 
     # If duplicates exist, resolve deterministically (keep last)
     if not cfg.allow_duplicates:
-        df = df.sort_values(["ticker", "date"]).drop_duplicates(
-            ["ticker", "date"], keep="last"
-        )
+        df = df.sort_values(["ticker", "date"]).drop_duplicates(["ticker", "date"], keep="last")
 
     # If no 'signal', create neutral zero unless explicitly required
     if "signal" not in df.columns:
@@ -97,9 +92,7 @@ def load_signals(
     return df.reset_index(drop=True)
 
 
-def load_history(
-    path: str | Path, *, config: PanelConfig | None = None
-) -> pd.DataFrame:
+def load_history(path: str | Path, *, config: PanelConfig | None = None) -> pd.DataFrame:
     """
     Load historical prices CSV. Expected columns (flexible):
       - required: ticker, date, close
@@ -121,9 +114,7 @@ def load_history(
 
     # Optional deduping
     if not cfg.allow_duplicates:
-        df = df.sort_values(["ticker", "date"]).drop_duplicates(
-            ["ticker", "date"], keep="last"
-        )
+        df = df.sort_values(["ticker", "date"]).drop_duplicates(["ticker", "date"], keep="last")
 
     # Derive close_next when missing
     if "close_next" not in df.columns:
@@ -161,9 +152,7 @@ def make_panel(
     # Missing signals become neutral zero unless explicitly disallowed
     if cfg.require_signal and out["signal"].isna().any():
         missing = int(out["signal"].isna().sum())
-        raise ValueError(
-            f"[panel] {missing} rows missing 'signal' but require_signal=True."
-        )
+        raise ValueError(f"[panel] {missing} rows missing 'signal' but require_signal=True.")
     out["signal"] = out["signal"].fillna(0.0)
 
     # Compute next-day return where we have close_next

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Auto-refactored for Ruff/Black compliance
-import sys
 import os
 import pathlib
+import sys
 import time
 from pathlib import Path
 
@@ -14,12 +14,14 @@ def main():
     os.chdir(ROOT)
     (ROOT / "metrics").mkdir(exist_ok=True)
     (ROOT / "reports").mkdir(exist_ok=True)
-    import json
     import datetime
+    import json
     import tracemalloc
+
     import psutil
-    from src.ets.analysis.sector_summary import run_summary
+
     from src.ets.analysis.history_compare import compare_latest_two
+    from src.ets.analysis.sector_summary import run_summary
 
     ROOT = pathlib.Path(__file__).resolve().parents[1]
     MET = ROOT / "metrics"
@@ -37,9 +39,7 @@ def main():
         try:
             hist = compare_latest_two()
         except FileNotFoundError:
-            hist = {
-                "note": "only one output present; run pipeline twice to enable history compare"
-            }
+            hist = {"note": "only one output present; run pipeline twice to enable history compare"}
 
         cur, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()

@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import argparse
-from typing import List, Dict
+
 import pandas as pd
+
 from ets.factors.cache_utils import (
-    read_symbols,
-    load_daily_cache,
-    save_daily_cache,
     fetch_daily_batch,
+    load_daily_cache,
+    read_symbols,
+    save_daily_cache,
     update_factors_csv,
 )
 
@@ -28,12 +30,10 @@ def main():
     )
     ap.add_argument("--symbols", default="", help="Path to tickers CSV")
     ap.add_argument("--lookback", type=int, default=35, help="days of daily bars")
-    ap.add_argument(
-        "--window", type=int, default=20, help="baseline window for median volume"
-    )
+    ap.add_argument("--window", type=int, default=20, help="baseline window for median volume")
     args = ap.parse_args()
 
-    symbols: List[str] = read_symbols(args.symbols)
+    symbols: list[str] = read_symbols(args.symbols)
     cached, misses = {}, []
     for s in symbols:
         c = load_daily_cache(s)
@@ -49,7 +49,7 @@ def main():
             if df is not None and not df.empty:
                 save_daily_cache(s, df)
 
-    v_vals: Dict[str, float] = {}
+    v_vals: dict[str, float] = {}
     for s in symbols:
         df = cached.get(s) or fetched.get(s)
         if df is None or df.empty or "Volume" not in df.columns:

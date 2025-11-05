@@ -1,16 +1,19 @@
 from __future__ import annotations
+
 import argparse
-import time
 import json
-import yaml
 import re
+import time
 from pathlib import Path
-from typing import Any, Dict, Set, List
+from typing import Any
+
 import pandas as pd
+import yaml
+
+from ets.data.providers.fetchers import fetch_factor
 
 # Local ETS imports
 from ets.data.providers.provider_registry import ProviderRegistry
-from ets.data.providers.fetchers import fetch_factor
 
 SYMBOL_CLEAN_RE = re.compile(r"[^A-Za-z0-9.\-\^]")
 
@@ -22,7 +25,7 @@ def normalize_symbol(s: str) -> str:
     return SYMBOL_CLEAN_RE.sub("", s)
 
 
-def load_config() -> Dict[str, Any]:
+def load_config() -> dict[str, Any]:
     # Try common locations; your repo uses src/ets/config/config.yaml
     here = Path(__file__).resolve()
     for rel in [
@@ -36,15 +39,15 @@ def load_config() -> Dict[str, Any]:
     raise FileNotFoundError("config.yaml not found")
 
 
-def load_symbols(csv_path: Path) -> List[str]:
+def load_symbols(csv_path: Path) -> list[str]:
     df = pd.read_csv(csv_path)
     col = df.columns[0]
     syms = [normalize_symbol(str(x)) for x in df[col].dropna().astype(str)]
     return [s for s in syms if s]
 
 
-def load_processed(jsonl_path: Path) -> Set[str]:
-    done: Set[str] = set()
+def load_processed(jsonl_path: Path) -> set[str]:
+    done: set[str] = set()
     if jsonl_path.exists():
         with jsonl_path.open() as f:
             for line in f:
@@ -57,7 +60,7 @@ def load_processed(jsonl_path: Path) -> Set[str]:
     return done
 
 
-def append_results(jsonl_path: Path, rows: List[Dict[str, Any]]) -> None:
+def append_results(jsonl_path: Path, rows: list[dict[str, Any]]) -> None:
     with jsonl_path.open("a") as f:
         for r in rows:
             f.write(json.dumps(r, separators=(",", ":")) + "\n")
@@ -86,12 +89,10 @@ def write_csv_summary(jsonl_path: Path, csv_out: Path) -> None:
                         "_src": d.get("_src"),
                     }
                 )
-    pd.DataFrame(rows).drop_duplicates(subset=["symbol"], keep="last").to_csv(
-        csv_out, index=False
-    )
+    pd.DataFrame(rows).drop_duplicates(subset=["symbol"], keep="last").to_csv(csv_out, index=False)
 
 
-def main():
+def main():  # noqa: C901
     ap = argparse.ArgumentParser()
     ap.add_argument("csv", nargs="?", default="tickers.csv")
     ap.add_argument("--factor", default="quote")
@@ -100,9 +101,7 @@ def main():
         action="store_true",
         help="watch tickers.csv for changes and keep processing",
     )
-    ap.add_argument(
-        "--cycle-sec", type=int, default=15, help="poll interval when --follow is set"
-    )
+    ap.add_argument("--cycle-sec", type=int, default=15, help="poll interval when --follow is set")
     args = ap.parse_args()
 
     cfg = load_config()
@@ -146,7 +145,7 @@ def main():
         todo = [s for s in symbols if s not in processed]
         print(f"[CYCLE] total={len(symbols)} todo={len(todo)} done={len(processed)}")
 
-        cycle_rows: List[Dict[str, Any]] = []
+        cycle_rows: list[dict[str, Any]] = []
         ok = fail = 0
 
         for i, sym in enumerate(todo, 1):
@@ -177,9 +176,7 @@ def main():
             append_results(jsonl_path, cycle_rows)
             write_csv_summary(jsonl_path, csv_out)
 
-        print(
-            f"[DONE-CYCLE] ok={ok} fail={fail} total_done={len(processed)} out={csv_out}"
-        )
+        print(f"[DONE-CYCLE] ok={ok} fail={fail} total_done={len(processed)} out={csv_out}")
 
         if not args.follow:
             break

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import argparse
 import subprocess
 import sys
@@ -20,9 +21,7 @@ FACTOR_TO_MODULE = {
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Build multiple factors into out/factors_latest.csv"
-    )
+    ap = argparse.ArgumentParser(description="Build multiple factors into out/factors_latest.csv")
     ap.add_argument(
         "--factors",
         required=True,

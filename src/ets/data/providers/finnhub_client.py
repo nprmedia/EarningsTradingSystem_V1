@@ -1,18 +1,17 @@
+import contextlib
 import os
 import time
-from typing import Optional, Dict, Any
+from typing import Any
 from urllib.parse import urlencode
 
 
 def _debug(msg: str) -> None:
     if os.getenv("FINNHUB_DEBUG", "0") == "1":
-        try:
+        with contextlib.suppress(Exception):
             print(f"[FH] {msg}")
-        except Exception:
-            pass
 
 
-def _get(reg, path, params) -> Optional[Dict[str, Any]]:
+def _get(reg, path, params) -> dict[str, Any] | None:
     """
     reg: {"session": requests.Session, "base": str, "key": str, "limiter": RateLimiter}
     """
@@ -49,13 +48,13 @@ def _get(reg, path, params) -> Optional[Dict[str, Any]]:
     return out
 
 
-def quote(reg, symbol: str) -> Optional[Dict[str, Any]]:
+def quote(reg, symbol: str) -> dict[str, Any] | None:
     return _get(reg, "/quote", {"symbol": symbol})
 
 
-def profile2(reg, symbol: str) -> Optional[Dict[str, Any]]:
+def profile2(reg, symbol: str) -> dict[str, Any] | None:
     return _get(reg, "/stock/profile2", {"symbol": symbol})
 
 
-def earnings_calendar(reg, _from: str, _to: str) -> Optional[Dict[str, Any]]:
+def earnings_calendar(reg, _from: str, _to: str) -> dict[str, Any] | None:
     return _get(reg, "/calendar/earnings", {"from": _from, "to": _to})

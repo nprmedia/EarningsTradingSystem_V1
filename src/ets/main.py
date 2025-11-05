@@ -21,44 +21,39 @@ def _print_mode_banner():
 
     print("=== ETS MODE ===")
     print(f"offline={offline} (1=offline, 0=live)")
-    print(
-        {
-            k: ("MOCK" if v in ("", "MOCK_KEY") else mask(v))
-            for k, v in providers.items()
-        }
-    )
+    print({k: ("MOCK" if v in ("", "MOCK_KEY") else mask(v)) for k, v in providers.items()})
     print("================")
 
 
 _print_mode_banner()
 
 
-import sys
 import argparse
-import logging
-import time
 import csv
+import logging
+import sys
+import time
 from datetime import datetime
 
 import pandas as pd
 
 # --- Project / internal imports
 from ets.config.defaults import DEFAULT_WEIGHTS
-from ets.util.dicts import deep_merge
-from ets.core.utils import load_yaml, run_id, ensure_dirs
-from ets.data.calendar import from_finnhub, from_csv
+from ets.core.env import load_env, require_env
 from ets.core.factors import compute_raw_factors
+from ets.core.finalize import finalize_results
 from ets.core.normalization import robust_normalize_df
 from ets.core.scoring import compute_scores
 from ets.core.selection import apply_filters_and_select
+from ets.core.utils import ensure_dirs, load_yaml, run_id
+from ets.data.calendar import from_csv, from_finnhub
+from ets.data.providers.provider_registry import ProviderRegistry
+from ets.data.providers.quotes_agg import get_pull_log, set_registry
+from ets.data.signals.calendar_loader import set_fallback_peers
+from ets.data.signals.calendar_loader import set_registry as set_calendar_registry
 from ets.outputs.csv_writer import write_factors, write_pulls
 from ets.outputs.telemetry import write_telemetry
-from ets.core.env import load_env, require_env
-from ets.data.signals.calendar_loader import set_fallback_peers
-from ets.core.finalize import finalize_results
-from ets.data.providers.provider_registry import ProviderRegistry
-from ets.data.providers.quotes_agg import set_registry, get_pull_log
-from ets.data.signals.calendar_loader import set_registry as set_calendar_registry
+from ets.util.dicts import deep_merge
 
 # Quiet noisy libs
 logging.getLogger("yfinance").setLevel(logging.ERROR)
@@ -190,7 +185,7 @@ def _load_sector_map_from_cache(cache_dir: str = "cache") -> dict:
     mapping = {}
     if os.path.exists(path):
         try:
-            with open(path, "r", newline="", encoding="utf-8") as f:
+            with open(path, newline="", encoding="utf-8") as f:
                 rdr = csv.reader(f)
                 for row in rdr:
                     if not row:
@@ -204,13 +199,8 @@ def _load_sector_map_from_cache(cache_dir: str = "cache") -> dict:
     return mapping
 
 
-def build_universe(
-    date_str: str, tickers_csv: str | None, provider_reg: ProviderRegistry | None
-):
-    if tickers_csv:
-        syms = from_csv(tickers_csv)
-    else:
-        syms = from_finnhub(date_str)
+def build_universe(date_str: str, tickers_csv: str | None, provider_reg: ProviderRegistry | None):
+    syms = from_csv(tickers_csv) if tickers_csv else from_finnhub(date_str)
     return syms or []
 
 
@@ -254,9 +244,7 @@ def _phase2_gate(factors_df: pd.DataFrame) -> pd.DataFrame:
     # Structural check: all CORE columns must exist in the frame
     missing_cols = [c for c in CORE if c not in factors_df.columns]
     if missing_cols:
-        raise SystemExit(
-            f"[FATAL] Missing required CORE factor columns: {missing_cols}"
-        )
+        raise SystemExit(f"[FATAL] Missing required CORE factor columns: {missing_cols}")
 
     # Drop rows with any null in CORE factors (strict)
     before = len(factors_df)
@@ -270,12 +258,8 @@ def _phase2_gate(factors_df: pd.DataFrame) -> pd.DataFrame:
     if opt_present:
         factors_df["_optional_count"] = factors_df[opt_present].notna().sum(axis=1)
         present_n = len(opt_present)
-        mean_cov = (
-            float(factors_df["_optional_count"].mean()) if len(factors_df) else 0.0
-        )
-        print(
-            f"[INFO] OPTIONAL factors available this run: {present_n} -> {opt_present}"
-        )
+        mean_cov = float(factors_df["_optional_count"].mean()) if len(factors_df) else 0.0
+        print(f"[INFO] OPTIONAL factors available this run: {present_n} -> {opt_present}")
         print(f"[INFO] Mean OPTIONAL coverage per ticker: {mean_cov:.2f}/{present_n}")
     else:
         print("[INFO] No OPTIONAL factors available this run (still OK).")
@@ -286,7 +270,7 @@ def _phase2_gate(factors_df: pd.DataFrame) -> pd.DataFrame:
 # ---------- Main ----------
 
 
-def main():
+def main():  # noqa: C901
     args = parse_args()
     cfg, wts = load_configs()
 
@@ -295,16 +279,18 @@ def main():
         print("[DRY] Running in dry-run mode — no network calls or file writes.")
         os.environ["ETS_MODE"] = "dry"
 
-    # Optional: session-specific weights override if present
-    try:
-        sess = getattr(args, "session", None)
-        if isinstance(wts, dict) and isinstance(wts.get("by_session"), dict):
-            if sess in wts["by_session"]:
+        # Optional: session-specific weights override if present
+        try:
+            sess = getattr(args, "session", None)
+            if (
+                isinstance(wts, dict)
+                and isinstance(wts.get("by_session"), dict)
+                and sess in wts["by_session"]
+            ):
                 wts = deep_merge(wts, wts["by_session"][sess] or {})
                 wts["base"] = float(wts.get("base", 1.0))
-    except Exception:
-        pass
-
+        except Exception as err:
+            print(f"[WARN] session merge failed: {err}")
     # Initialize providers (Finnhub-first) and attach to quotes aggregator
     load_env()
     try:
@@ -430,7 +416,12 @@ def main():
         finalize_results(scores_path, out_dir)
 
     print(
-        f"[OK] Wrote:\n  {factors_path}\n  {scores_path}\n  {trades_path}\n  {pulls_path}\n  {tele_path}"
+        f"[OK] Wrote:\n"
+        f"  {factors_path}\n"
+        f"  {scores_path}\n"
+        f"  {trades_path}\n"
+        f"  {pulls_path}\n"
+        f"  {tele_path}"
     )
     return 0
 

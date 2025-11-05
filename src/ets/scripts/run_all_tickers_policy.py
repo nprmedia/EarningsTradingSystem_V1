@@ -1,14 +1,17 @@
 from __future__ import annotations
+
+import json
+import re
 import sys
 import time
-import json
-import yaml
-import pandas as pd
-import re
 from pathlib import Path
-from typing import Any, Dict
-from ets.data.providers.provider_registry import ProviderRegistry
+from typing import Any
+
+import pandas as pd
+import yaml
+
 from ets.data.providers.fetchers import fetch_factor
+from ets.data.providers.provider_registry import ProviderRegistry
 
 SYMBOL_CLEAN_RE = re.compile(r"[^A-Za-z0-9\.\-\^]")
 
@@ -21,7 +24,7 @@ def normalize_symbol(s: str) -> str:
     return s
 
 
-def load_config() -> Dict[str, Any]:
+def load_config() -> dict[str, Any]:
     # Try defaults.CONFIG
     try:
         from ets.config import defaults
@@ -69,9 +72,7 @@ def main():
         reserve = reg.finnhub["limiter"].reserve  # type: ignore[index]
     except Exception:
         reserve = "NA"
-    print(
-        f"[INFO] pulling {len(symbols)} | factor={factor} | finnhub_reserve={reserve}"
-    )
+    print(f"[INFO] pulling {len(symbols)} | factor={factor} | finnhub_reserve={reserve}")
 
     ok = fail = 0
     t0 = time.time()
@@ -113,15 +114,11 @@ def main():
                 "t": d.get("t"),
             }
         )
-    (out_dir / f"{factor}_results.csv").write_text(
-        pd.DataFrame(rows).to_csv(index=False)
-    )
+    (out_dir / f"{factor}_results.csv").write_text(pd.DataFrame(rows).to_csv(index=False))
 
     dt = time.time() - t0
     print(f"[DONE] {ok}/{len(symbols)} succeeded, {fail} failed in {dt:0.1f}s")
-    print(
-        f"[OUT] {out_dir / f'{factor}_results.jsonl'} | {out_dir / f'{factor}_results.csv'}"
-    )
+    print(f"[OUT] {out_dir / f'{factor}_results.jsonl'} | {out_dir / f'{factor}_results.csv'}")
 
 
 if __name__ == "__main__":

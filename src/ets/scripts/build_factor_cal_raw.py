@@ -1,14 +1,14 @@
 from __future__ import annotations
+
 import argparse
-import sys
-import math
 import csv
 import datetime as dt
+import math
+import sys
 from pathlib import Path
-from typing import List, Dict, Tuple
 
-from ets.factors.cache_utils import read_symbols, update_factors_csv
 from ets.data.providers.provider_registry import ProviderRegistry
+from ets.factors.cache_utils import read_symbols, update_factors_csv
 
 try:
     import requests
@@ -37,9 +37,9 @@ def _load_cfg():
     raise FileNotFoundError("config.yaml not found")
 
 
-def _load_calendar_cache() -> Dict[Tuple[str, str], str]:
+def _load_calendar_cache() -> dict[tuple[str, str], str]:
     # key: (symbol, "next"), value: YYYY-MM-DD
-    out: Dict[Tuple[str, str], str] = {}
+    out: dict[tuple[str, str], str] = {}
     if not CACHE_FILE.exists():
         return out
     with CACHE_FILE.open() as f:
@@ -49,10 +49,10 @@ def _load_calendar_cache() -> Dict[Tuple[str, str], str]:
     return out
 
 
-def _save_calendar_cache(rows: List[Dict[str, str]]) -> None:
+def _save_calendar_cache(rows: list[dict[str, str]]) -> None:
     CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
     # de-dup by (symbol,kind)
-    dedup: Dict[Tuple[str, str], Dict[str, str]] = {}
+    dedup: dict[tuple[str, str], dict[str, str]] = {}
     if CACHE_FILE.exists():
         with CACHE_FILE.open() as f:
             for row in csv.DictReader(f):
@@ -123,13 +123,13 @@ def main():
     )
     args = ap.parse_args()
 
-    symbols: List[str] = read_symbols(args.symbols)
+    symbols: list[str] = read_symbols(args.symbols)
     cfg = _load_cfg()
     reg = ProviderRegistry(cfg).finnhub  # uses your .env key & limiter
     cache = _load_calendar_cache()
 
-    updates_cache: List[Dict[str, str]] = []
-    cal_vals: Dict[str, float] = {}
+    updates_cache: list[dict[str, str]] = []
+    cal_vals: dict[str, float] = {}
     for s in symbols:
         sU = s.upper()
         cached = cache.get((sU, "next"))
@@ -152,10 +152,7 @@ def main():
             d = _days_until(cached)
             # Optional: refresh cache if stale (>24h) and event not passed
             if (
-                d > 0
-                and dt.datetime.fromisoformat(
-                    updates_cache[-1]["checked_at"][:-1]
-                ).date()
+                d > 0 and dt.datetime.fromisoformat(updates_cache[-1]["checked_at"][:-1]).date()
                 if updates_cache
                 else True
             ):

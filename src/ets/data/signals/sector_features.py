@@ -1,4 +1,4 @@
-from ets.data.providers.quotes_agg import pct_change_today, fetch_quote_basic
+from ets.data.providers.quotes_agg import fetch_quote_basic, pct_change_today
 
 
 def sector_relative_momentum(symbol: str, sector_etf: str) -> float:

@@ -1,17 +1,18 @@
 from __future__ import annotations
+
 import argparse
-from typing import List, Dict
+
 import numpy as np
 import pandas as pd
 
 from ets.factors.cache_utils import (
-    read_symbols,
-    load_daily_cache,
-    save_daily_cache,
     fetch_daily_batch,
+    load_daily_cache,
+    read_symbols,
+    save_daily_cache,
     update_factors_csv,
 )
-from ets.factors.sector_utils import load_sector_profile, load_sector_etf_map
+from ets.factors.sector_utils import load_sector_etf_map, load_sector_profile
 
 
 def log_return(close: pd.Series, window: int) -> float:
@@ -21,23 +22,21 @@ def log_return(close: pd.Series, window: int) -> float:
     return float(np.log(c.iloc[-1] / c.iloc[-(window + 1)]))
 
 
-def main():
+def main():  # noqa: C901
     ap = argparse.ArgumentParser(
         description="Build SRM_raw (sector-relative momentum: 10d stock r - sector ETF r)"
     )
     ap.add_argument("--symbols", default="", help="Path to tickers CSV")
     ap.add_argument("--lookback", type=int, default=35, help="days of daily bars")
-    ap.add_argument(
-        "--window", type=int, default=10, help="lookback window for momentum"
-    )
+    ap.add_argument("--window", type=int, default=10, help="lookback window for momentum")
     args = ap.parse_args()
 
-    symbols: List[str] = read_symbols(args.symbols)
+    symbols: list[str] = read_symbols(args.symbols)
     prof = load_sector_profile()
     m = load_sector_etf_map()
 
     # figure ETFs required
-    sym_to_sector = dict(zip(prof["symbol"], prof["sector"]))
+    sym_to_sector = dict(zip(prof["symbol"], prof["sector"], strict=False))
     etfs_needed = sorted(
         {
             m.get(sym_to_sector.get(s, ""), None)
@@ -70,16 +69,14 @@ def main():
         else:
             etf_miss.append(e)
     if etf_miss:
-        print(
-            f"[INFO] fetching daily bars for {len(etf_miss)} sector ETFs via Yahoo..."
-        )
+        print(f"[INFO] fetching daily bars for {len(etf_miss)} sector ETFs via Yahoo...")
         ff = fetch_daily_batch(etf_miss, args.lookback)
         for e, df in ff.items():
             if df is not None and not df.empty:
                 save_daily_cache(e, df)
                 etf_cached[e] = df
 
-    vals: Dict[str, float] = {}
+    vals: dict[str, float] = {}
     for s in symbols:
         df = cached.get(s) or fetched.get(s)
         if df is None or df.empty:

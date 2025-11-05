@@ -16,7 +16,7 @@ import json
 import math
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -57,7 +57,7 @@ def _sharpe_ratio(rets: pd.Series) -> float:
     return daily_sharpe * math.sqrt(252)
 
 
-def compute_metrics(panel: pd.DataFrame) -> Dict[str, Any]:
+def compute_metrics(panel: pd.DataFrame) -> dict[str, Any]:
     """
     Compute performance metrics from a backtest panel.
     Required columns: ['ticker', 'date', 'signal', 'ret_next']
@@ -100,9 +100,7 @@ def compute_metrics(panel: pd.DataFrame) -> Dict[str, Any]:
 
 
 # --------- Artifact Persistence ---------
-def save_artifacts(
-    reports_dir: Path, metrics: Dict[str, Any], panel: pd.DataFrame
-) -> None:
+def save_artifacts(reports_dir: Path, metrics: dict[str, Any], panel: pd.DataFrame) -> None:
     """
     Save human-readable outputs (CSV + JSON) to reports/.
     """

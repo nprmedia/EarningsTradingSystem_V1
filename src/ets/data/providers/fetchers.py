@@ -1,14 +1,13 @@
 import os
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any
 
 from ets.data.providers.provider_registry import ProviderRegistry
 from ets.data.providers.rate_limiter import retry_with_backoff
 
-
 # ---------- Provider adapters ----------
 
 
-def _fh_profile2(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
+def _fh_profile2(reg: dict, symbol: str) -> dict[str, Any] | None:
     """
     Finnhub company profile (e.g., sector mapping).
     Returns a dict on success or None on failure.
@@ -21,7 +20,7 @@ def _fh_profile2(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _fh_quote(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
+def _fh_quote(reg: dict, symbol: str) -> dict[str, Any] | None:
     """
     Finnhub quote. Returns a dict with keys like c/h/l/o/pc/t or None.
     """
@@ -33,7 +32,7 @@ def _fh_quote(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _yh_quote(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
+def _yh_quote(reg: dict, symbol: str) -> dict[str, Any] | None:
     """
     Yahoo quote (native client if present, else yfinance best-effort).
     Returns Finnhub-like keys where possible.
@@ -51,9 +50,7 @@ def _yh_quote(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
         import yfinance as yf
 
         # Try high-frequency snapshot first
-        df = yf.download(
-            symbol, period="1d", interval="1m", progress=False, threads=False
-        )
+        df = yf.download(symbol, period="1d", interval="1m", progress=False, threads=False)
         if df is not None and not df.empty:
             last = df.iloc[-1]
             return {
@@ -88,7 +85,7 @@ def _yh_quote(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _stooq_quote(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
+def _stooq_quote(reg: dict, symbol: str) -> dict[str, Any] | None:
     """
     Optional Stooq adapter if present in your repo.
     """
@@ -113,7 +110,7 @@ def _stooq_quote(reg: dict, symbol: str) -> Optional[Dict[str, Any]]:
 
 # ---------- Policy ----------
 
-FACTOR_POLICY: Dict[str, Dict[str, Any]] = {
+FACTOR_POLICY: dict[str, dict[str, Any]] = {
     # Sector lookup (for weighting/scoring)
     "profile2": {
         "providers": [("finnhub", _fh_profile2)],  # primary only; blocks under limiter
@@ -145,9 +142,7 @@ FACTOR_POLICY: Dict[str, Dict[str, Any]] = {
 # ---------- Provider resolution (env override) ----------
 
 
-def _resolve_providers(
-    factor: str, default_list: List[Tuple[str, Any]]
-) -> List[Tuple[str, Any]]:
+def _resolve_providers(factor: str, default_list: list[tuple[str, Any]]) -> list[tuple[str, Any]]:
     """
     Allow env override of provider chain per factor.
     - ETS_<FACTOR>_PROVIDERS takes precedence (e.g., ETS_QUOTE_PROVIDERS="finnhub,yahoo")
@@ -160,11 +155,9 @@ def _resolve_providers(
         return default_list
 
     # Build allowed-name map from the default list
-    name_to_fn: Dict[str, Tuple[str, Any]] = {
-        name: (name, fn) for name, fn in default_list
-    }
+    name_to_fn: dict[str, tuple[str, Any]] = {name: (name, fn) for name, fn in default_list}
 
-    out: List[Tuple[str, Any]] = []
+    out: list[tuple[str, Any]] = []
     for name in (x.strip().lower() for x in order.split(",") if x.strip()):
         if name in name_to_fn:
             out.append(name_to_fn[name])
@@ -175,9 +168,7 @@ def _resolve_providers(
 # ---------- Entry point ----------
 
 
-def fetch_factor(
-    registry: ProviderRegistry, factor: str, symbol: str
-) -> Optional[Dict[str, Any]]:
+def fetch_factor(registry: ProviderRegistry, factor: str, symbol: str) -> dict[str, Any] | None:
     """
     Blocking, failure-only fallback:
     - Acquire limiter for the provider (BLOCKS until safe; NOT a failure).
@@ -205,7 +196,7 @@ def fetch_factor(
             lim.acquire(cost=cost)
 
         def _do():
-            return call_fn(reg, symbol)
+            return call_fn(reg, symbol)  # noqa: B023
 
         try:
             out = retry_with_backoff(_do, attempts=retries, base=0.25, max_sleep=4.0)

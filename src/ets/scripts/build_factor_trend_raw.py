@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 import argparse
 import sys
+
 import numpy as np
 import pandas as pd
+
 from ets.factors.cache_utils import OUT_DIR, update_factors_csv
 
 
@@ -51,7 +54,7 @@ def main():
     zV = robust_z(Vc)
 
     trend = 0.5 * zM + 0.3 * zA + 0.2 * zV
-    vals = dict(zip(df["symbol"], trend.astype(float).tolist()))
+    vals = dict(zip(df["symbol"], trend.astype(float).tolist(), strict=False))
 
     update_factors_csv(df["symbol"].tolist(), "TREND_raw", vals)
     print("[DONE] TREND_raw complete")

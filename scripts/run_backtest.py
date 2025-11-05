@@ -71,8 +71,8 @@ def main() -> int:
 
     try:
         from ets.backtest.historical_loader import (
-            load_signals,
             load_history,
+            load_signals,
             make_panel,
         )
         from ets.backtest.performance_metrics import (

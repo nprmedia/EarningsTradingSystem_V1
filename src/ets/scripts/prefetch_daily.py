@@ -1,12 +1,14 @@
-import os
+import contextlib
 import csv
+import os
 import time
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
+
 from ets.core.env import load_env, require_env
-from ets.core.utils import load_yaml, ensure_dirs
-from ets.data.providers.provider_registry import ProviderRegistry
-from ets.data.providers.quotes_agg import set_registry, fetch_quote_basic
+from ets.core.utils import ensure_dirs, load_yaml
 from ets.data.providers.finnhub_client import earnings_calendar, profile2
+from ets.data.providers.provider_registry import ProviderRegistry
+from ets.data.providers.quotes_agg import fetch_quote_basic, set_registry
 
 
 def _ds(d):
@@ -23,7 +25,7 @@ def _retry(call, *args, tries=5, base_sleep=1.5, **kwargs):
             time.sleep(base_sleep * (2**i))
 
 
-def main(days: int = 7, start: str | None = None):
+def main(days: int = 7, start: str | None = None):  # noqa: C901
     load_env()
     # Key is strongly recommended; we only warn if missing
     try:
@@ -34,19 +36,13 @@ def main(days: int = 7, start: str | None = None):
     except Exception as e:
         print("[WARN]", e)
 
-    cfg = load_yaml(
-        os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml")
-    )
+    cfg = load_yaml(os.path.join(os.path.dirname(__file__), "..", "config", "config.yaml"))
     cache_dir = cfg["app"]["cache_dir"]
     ensure_dirs(cache_dir)
     reg = ProviderRegistry(cfg)
     set_registry(reg)
 
-    base = (
-        datetime.strptime(start, "%Y-%m-%d").date()
-        if start
-        else datetime.now(UTC).date()
-    )
+    base = datetime.strptime(start, "%Y-%m-%d").date() if start else datetime.now(UTC).date()
     dates = [_ds(base + timedelta(days=i)) for i in range(days)]
 
     # 1) calendar
@@ -68,7 +64,7 @@ def main(days: int = 7, start: str | None = None):
     sec_path = os.path.join(cache_dir, "sectors.csv")
     existing = {}
     if os.path.exists(sec_path):
-        with open(sec_path, "r", encoding="utf-8") as f:
+        with open(sec_path, encoding="utf-8") as f:
             for r in csv.reader(f):
                 if len(r) >= 2:
                     existing[r[0].upper()] = r[1]
@@ -89,10 +85,8 @@ def main(days: int = 7, start: str | None = None):
         "sector_etfs",
         ["SPY", "XLK", "XLY", "XLF", "XLI", "XLE", "XLV", "XLU", "XLB", "XLRE", "XLC"],
     ):
-        try:
+        with contextlib.suppress(Exception):
             fetch_quote_basic(etf)
-        except Exception:
-            pass
 
     # 4) expire trends cache older than 7 days
     tdir = os.path.join("cache", "trends")

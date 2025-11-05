@@ -1,0 +1,31 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+lint.select = ["E","F","I","B","UP","SIM","W","C90"]
+lint.ignore = []
+exclude = [".venv",".git","dist","build"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-q -ra -W error"
+testpaths = ["tests"]
+markers = [
+  "smoke: lightweight, <60s sanity tests",
+  "integration: full offline integration tests using fixtures/mocks",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/ets"]
+omit = [
+  "src/ets/__main__.py",
+  "src/ets/_version.py"
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import os
 import sys
+
 import pandas as pd
+
 from ets.data.providers.quotes_agg import fetch_quote_basic
 
 

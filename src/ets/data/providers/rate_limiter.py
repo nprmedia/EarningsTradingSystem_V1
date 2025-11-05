@@ -3,8 +3,9 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional, TypeVar, Deque
+from typing import TypeVar
 
 T = TypeVar("T")
 
@@ -29,8 +30,8 @@ class RateLimiter:
 
     def __init__(
         self,
-        per_second: Optional[int] = None,
-        per_minute: Optional[int] = None,
+        per_second: int | None = None,
+        per_minute: int | None = None,
         reserve: int = 2,
         name: str = "limiter",
     ) -> None:
@@ -46,18 +47,18 @@ class RateLimiter:
         if per_minute:
             self._windows.append(Window(60.0, int(per_minute)))
 
-        self._buffers: list[Deque[float]] = [deque() for _ in self._windows]
+        self._buffers: list[deque[float]] = [deque() for _ in self._windows]
         self._lock = threading.Lock()
 
     def _prune(self, now: float) -> None:
-        for buf, win in zip(self._buffers, self._windows):
+        for buf, win in zip(self._buffers, self._windows, strict=False):
             cutoff = now - win.size_sec
             while buf and buf[0] <= cutoff:
                 buf.popleft()
 
     def _next_safe_time(self, now: float, cost: int) -> float:
         earliest = now
-        for buf, win in zip(self._buffers, self._windows):
+        for buf, win in zip(self._buffers, self._windows, strict=False):
             used = len(buf)
             allowed = max(0, win.capacity - self.reserve)
             if cost <= 0 or used + cost <= allowed:
@@ -99,7 +100,7 @@ class RateLimiter:
         with self._lock:
             self._prune(now)
             out = {"name": self.name, "reserve": self.reserve, "windows": []}
-            for buf, win in zip(self._buffers, self._windows):
+            for buf, win in zip(self._buffers, self._windows, strict=False):
                 out["windows"].append(
                     {
                         "size_sec": win.size_sec,

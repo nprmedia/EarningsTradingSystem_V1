@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 from pathlib import Path
-from typing import Dict
+
 import pandas as pd
 import yaml
 
@@ -18,7 +19,7 @@ def load_sector_profile() -> pd.DataFrame:
     return df
 
 
-def load_sector_etf_map() -> Dict[str, str]:
+def load_sector_etf_map() -> dict[str, str]:
     p = Path("src/ets/config/sector_etf_map.yaml")
     if not p.exists():
         return {}

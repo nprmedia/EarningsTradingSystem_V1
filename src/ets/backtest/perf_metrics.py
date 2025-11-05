@@ -1,7 +1,8 @@
 import json
-import pandas as pd
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[3]
 METRICS = ROOT / "metrics"
