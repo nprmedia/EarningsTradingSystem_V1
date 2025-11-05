@@ -181,6 +181,6 @@ def main():  # noqa: C901
     print(f"[OK] updated {len(changes)} weights across {len(touched_sectors)} sector(s)")
     for c in changes:
         print(
-            f" - {c["sector"]}.{c["factor"]}: {c["old_weight"]} -> {c["new_weight"]} "
-            f"[{c["source"]}{" "+c["reason"] if c["reason"] else ""}]"
+            f" - {c['sector']}.{c['factor']}: {c['old_weight']} -> {c['new_weight']} "
+            f"[{c['source']}{" "+c['reason'] if c['reason'] else ""}]"
         )
