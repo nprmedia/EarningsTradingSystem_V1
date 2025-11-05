@@ -2,7 +2,7 @@ name: ETS • Phase 2 • Backtest
 
 on:
   push:
-    branches: [ main, ets_update_2 ]
+    branches: [ main, ets_update_2*, ets_update_3 ]
     paths:
       - "src/**"
       - "scripts/**"
@@ -12,7 +12,7 @@ on:
       - "pyproject.toml"
       - ".github/workflows/ets-backtest.yml"
   pull_request:
-    branches: [ main, ets_update_2 ]
+    branches: [ main, ets_update_2*, ets_update_3 ]
   workflow_dispatch:
 
 jobs:
