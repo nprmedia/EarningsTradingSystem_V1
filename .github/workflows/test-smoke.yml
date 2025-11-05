@@ -1,0 +1,47 @@
+name: "Test — Smoke"
+
+on:
+  push:
+    branches: ["**"]
+    paths-ignore: ["**.md","**.png","**.svg","**.gif"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    name: Smoke (py311)
+    runs-on: ubuntu-latest
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONHASHSEED: "0"
+      ETS_OFFLINE: "1"
+      ETS_SEED: "1337"
+      ETS_STRICT_DETERMINISM: "1"
+      TZ: "UTC"
+      MPLBACKEND: "Agg"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pytest pytest-cov ruff black
+
+      - name: Run smoke tests
+        run: scripts/ci/run_smoke_tests.sh
+
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-artifacts
+          path: reports/**
+          if-no-files-found: warn
