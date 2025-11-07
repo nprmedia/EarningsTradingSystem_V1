@@ -1,45 +1,18 @@
-name: ETS • Phase 3 • Smoke + CLI
+name: Phase 4 - Smoke + CLI
 
 on:
-  push:
-    branches: [ main, ets_update_3 ]
-    paths:
-      - "src/**"
-      - "scripts/**"
-      - ".github/workflows/ets-smoke-cli.yml"
   workflow_dispatch:
+  workflow_call:
 
 jobs:
-  smoke:
+  smoke-cli:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      PYTHONPATH: "${{ github.workspace }}/src"
-      ETS_DATE: "2024-10-01"
-      ETS_SESSION: "amc"
-      ETS_TICKERS: "tickers.csv"
-
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install runtime
-        run: |
-          pip install -U pip setuptools wheel
-          pip install -e .
-
-      - name: Run CLI smoke test
-        shell: bash
-        run: |
-          echo ">>> Launching ETS CLI smoke run"
-          python -m ets.main --session "$ETS_SESSION" --date "$ETS_DATE" --tickers "$ETS_TICKERS"
-          echo ">>> Verifying basic outputs"
-          ls -lh out/ || true
-          test -f out/manifest.json && echo "Manifest OK" || (echo "Missing manifest" && exit 1)
-
-      - name: Summarize
-        run: |
-          echo "✅ CLI smoke test completed successfully." >> $GITHUB_STEP_SUMMARY
+      - name: Run smoke tests
+        run: pytest -m smoke -q --disable-warnings
