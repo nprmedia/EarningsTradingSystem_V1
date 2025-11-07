@@ -34,6 +34,9 @@ jobs:
           # Install package so `import ets` works in CI (src/ layout)
           pip install -e .
 
+      - name: Install pre-commit
+        run: pip install pre-commit
+
       - name: Pre-commit (lint/format checks)
         run: |
           pre-commit install --install-hooks
