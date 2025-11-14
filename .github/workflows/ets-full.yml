@@ -1,6 +1,8 @@
 name: Trigger full CI chain (Phase 1 → Phase 2 → Backtest → Smoke)
 
 on:
+  push:
+    branches: [ets_update_3]
   workflow_dispatch:
 
 jobs:
@@ -19,6 +21,6 @@ jobs:
     uses: ./.github/workflows/ets-backtest.yml
 
   smoke:
-    name: Phase 4 – Smoke + CLI
+    name: Phase 4 – Smoke CLI
     needs: backtest
     uses: ./.github/workflows/ets-smoke-cli.yml
