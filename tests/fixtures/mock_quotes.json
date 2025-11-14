@@ -1,5 +1,23 @@
 {
-  "AAPL": {"price": 180.12, "volume": 75000000},
-  "MSFT": {"price": 335.22, "volume": 56000000},
-  "GOOGL": {"price": 142.11, "volume": 31000000}
+  "AAPL": {
+    "open": 178.45,
+    "high": 181.00,
+    "low": 177.20,
+    "close": 180.12,
+    "volume": 75000000
+  },
+  "MSFT": {
+    "open": 332.10,
+    "high": 337.50,
+    "low": 331.20,
+    "close": 335.22,
+    "volume": 56000000
+  },
+  "GOOGL": {
+    "open": 140.80,
+    "high": 143.00,
+    "low": 139.50,
+    "close": 142.11,
+    "volume": 31000000
+  }
 }
