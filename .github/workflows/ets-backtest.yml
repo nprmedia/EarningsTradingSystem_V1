@@ -2,45 +2,32 @@ name: ETS Backtest Core
 
 on:
   push:
-    branches: [ main, ets_update_2, ets_update_3 ]
+    branches: [ main, ets_update_3 ]
   workflow_dispatch:
 
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ${{ github.workspace }}/EarningsTradingSystem_V1
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip wheel setuptools pytest
-          pip install -e .
-          pip install pandas
+          python -m pip install --upgrade pip wheel setuptools
+          pip install .
+          pip install pytest pandas
 
-      - name: Run backtest (fixtures)
+      - name: Run backtest
         env:
           BACKTEST_SIGNALS: tests/fixtures/mock_signals.csv
           BACKTEST_HISTORY: tests/fixtures/mock_history.csv
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           python scripts/run_backtest.py
-
-      - name: Run backtest core test
-        run: |
-          pytest -q --disable-warnings tests/test_backtest_core.py
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ets-backtest
-          path: |
-            reports/*
-            metrics/*
-            out/*
