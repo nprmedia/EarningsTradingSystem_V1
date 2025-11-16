@@ -1,9 +1,7 @@
 name: ETS Provider Validation
 
 on:
-  push:
-    branches: [ main, ets_update_2, ets_update_3 ]
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   provider_validation:

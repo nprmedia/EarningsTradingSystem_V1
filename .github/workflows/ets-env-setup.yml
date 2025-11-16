@@ -1,3 +1,8 @@
+name: ETS Env Setup
+
+on:
+  workflow_call:
+
 jobs:
   env_setup:
     runs-on: ubuntu-latest

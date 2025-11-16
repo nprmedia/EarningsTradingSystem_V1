@@ -1,9 +1,7 @@
 name: ETS Backtest Core
 
 on:
-  push:
-    branches: [ main, ets_update_2, ets_update_3 ]
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   backtest:
