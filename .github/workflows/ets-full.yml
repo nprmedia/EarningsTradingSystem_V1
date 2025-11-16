@@ -1,3 +1,10 @@
+name: ETS Full Pipeline
+
+on:
+  push:
+    branches: [ main, ets_update_2, ets_update_3 ]
+  workflow_dispatch:
+
 jobs:
 
   ###########################################################################
