@@ -27,11 +27,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel setuptools
           pip install -e .
+          pip install pytest
 
       - name: Run basic smoke imports
         run: |
           pytest -q tests/smoke/test_imports.py
-
 
   # ----------------------------------------------------
   # PHASE 1 — PROVIDER VALIDATION
