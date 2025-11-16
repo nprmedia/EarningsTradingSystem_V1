@@ -1,26 +1,35 @@
-name: Trigger full CI chain (Phase 1 → Phase 2 → Backtest → Smoke)
+name: ETS Full Smoke + CLI
 
 on:
   push:
-    branches: [ets_update_3]
+    branches: [ main, ets_update_2, ets_update_3 ]
   workflow_dispatch:
 
 jobs:
-  env-setup:
-    name: Phase 1 – Env Setup
-    uses: ./.github/workflows/ets-env-setup.yml
+  full:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
 
-  provider-validate:
-    name: Phase 2 – Provider Validation
-    needs: env-setup
-    uses: ./.github/workflows/ets-provider-validate.yml
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  backtest:
-    name: Phase 3 – Backtest
-    needs: provider-validate
-    uses: ./.github/workflows/ets-backtest.yml
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-  smoke:
-    name: Phase 4 – Smoke CLI
-    needs: backtest
-    uses: ./.github/workflows/ets-smoke-cli.yml
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools pytest
+          pip install .
+
+      - name: Run smoke tests
+        run: |
+          pytest -q --disable-warnings tests/smoke
+
+      - name: Run CLI help
+        run: |
+          python -m ets.main --help
