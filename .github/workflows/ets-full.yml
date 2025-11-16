@@ -6,7 +6,32 @@ on:
   workflow_dispatch:
 
 jobs:
+
+  # ============================
+  # Phase 1 — Environment Setup
+  # ============================
+  env_setup:
+    uses: ./.github/workflows/ets-env-setup.yml
+
+  # =======================================
+  # Phase 2 — Provider Validation (depends)
+  # =======================================
+  provider_validation:
+    needs: env_setup
+    uses: ./.github/workflows/ets-provider-validation.yml
+
+  # ============================================
+  # Phase 3 — Analytics Suite (depends on phase2)
+  # ============================================
+  analytics:
+    needs: provider_validation
+    uses: ./.github/workflows/ets-analytics.yml
+
+  # ========================================================
+  # Phase 4 — Full Smoke + CLI (depends on analytics phase)
+  # ========================================================
   full:
+    needs: analytics
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,5 +58,5 @@ jobs:
       - name: Run CLI help
         run: |
           python -m ets.main --help
-# force workflow refresh
+
 # force workflow refresh
