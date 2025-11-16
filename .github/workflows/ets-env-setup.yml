@@ -1,9 +1,6 @@
 jobs:
   env_setup:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ${{ github.workspace }}
 
     env:
       ETS_STRICT_DETERMINISM: "1"
