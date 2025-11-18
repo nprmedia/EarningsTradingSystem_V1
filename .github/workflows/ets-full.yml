@@ -12,7 +12,9 @@ jobs:
   ###########################################################################
   env_setup:
     uses: ./.github/workflows/ets-env-setup.yml
-
+    with:
+      ETS_STRICT_DETERMINISM: "1"
+      ETS_SEED: "1337"
 
   ###########################################################################
   #  PHASE 2 — PROVIDER VALIDATION
@@ -21,14 +23,12 @@ jobs:
     needs: env_setup
     uses: ./.github/workflows/ets-provider-validate.yml
 
-
   ###########################################################################
   #  PHASE 3 — BACKTEST
   ###########################################################################
   backtest:
     needs: provider_validation
     uses: ./.github/workflows/ets-backtest.yml
-
 
   ###########################################################################
   #  PHASE 4 — FULL SMOKE + CLI

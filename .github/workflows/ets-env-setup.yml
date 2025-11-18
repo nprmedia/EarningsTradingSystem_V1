@@ -1,15 +1,22 @@
-name: ETS Env Setup
+name: ETS Environment Setup
 
 on:
   workflow_call:
+    inputs:
+      ETS_STRICT_DETERMINISM:
+        required: true
+        type: string
+      ETS_SEED:
+        required: true
+        type: string
 
 jobs:
   env_setup:
     runs-on: ubuntu-latest
 
     env:
-      ETS_STRICT_DETERMINISM: "1"
-      ETS_SEED: "1337"
+      ETS_STRICT_DETERMINISM: ${{ inputs.ETS_STRICT_DETERMINISM }}
+      ETS_SEED: ${{ inputs.ETS_SEED }}
 
     steps:
       - name: Checkout repository
@@ -26,7 +33,10 @@ jobs:
           pip install --editable .
           pip install pytest
           pip install requests
+          pip install pandas
 
       - name: Run basic smoke imports
+        env:
+          PYTHONPATH: "${{ github.workspace }}/src"
         run: |
           pytest -q --disable-warnings tests/smoke
