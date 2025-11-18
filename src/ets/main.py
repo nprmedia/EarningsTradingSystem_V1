@@ -3,6 +3,7 @@
 # Environment bootstrap — must run before any other imports
 # =====================================================
 # Ensure deterministic seeding applies even if main.py is called directly
+import ets  # noqa: F401
 from ets.config.env_loader import load_env
 
 load_env(verbose=False)
