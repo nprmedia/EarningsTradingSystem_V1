@@ -23,9 +23,7 @@ def _disable_network(monkeypatch):
         raise RuntimeError("Network disabled in tests.")
 
     monkeypatch.setattr(socket, "create_connection", guard)
-    monkeypatch.setattr(
-        socket, "socket", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("Network disabled"))
-    )
+    monkeypatch.setattr(socket.socket, "connect", guard, raising=False)
 
 
 @pytest.fixture(scope="session")

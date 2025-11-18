@@ -154,36 +154,6 @@ def compute_raw_factors(  # noqa: C901
     except Exception:
         TREND_raw = 0.0
 
-    # Calendar density (placeholder 0 until we wire events list)
-    CAL_raw = 0.0
-
-    # Sector-relative momentum: stock intraday % – ETF intraday %
-    try:
-        SRM_raw = sector_relative_momentum(s, etf)
-    except Exception:
-        SRM_raw = 0.0
-
-    # Peer earnings drift (placeholder 0 until calendar peer list is wired)
-    PEER_raw = 0.0
-
-    # Sector ETF flows proxy (span% * sqrt(volume))
-    try:
-        ETFF_raw = etf_flow_proxy(etf)
-    except Exception:
-        ETFF_raw = 0.0
-
-    # Macro risk via VIX intraday move
-    try:
-        VIX_raw = vix_risk_signal()
-    except Exception:
-        VIX_raw = 0.0
-
-    # Google Trends search interest (cached weekly)
-    try:
-        TREND_raw = float(search_interest(s) or 0.0)
-    except Exception:
-        TREND_raw = 0.0
-
     return {
         "ticker": s,
         "sector": sector,

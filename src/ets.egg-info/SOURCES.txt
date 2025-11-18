@@ -2,6 +2,7 @@ README.md
 pyproject.toml
 src/__init__.py
 src/ets/__init__.py
+src/ets/__main__.py
 src/ets/main.py
 src/ets/utils.py
 src/ets.egg-info/PKG-INFO
